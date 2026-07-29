@@ -1,0 +1,69 @@
+name: zed package interoperability
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: zed-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out package source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: source
+          persist-credentials: false
+
+      - name: Check out pinned zed CLI
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: zed-pkg/zed-cli
+          ref: 4e6154aaf28964fc3b063db01dc09cb86a368104
+          path: zed-cli
+          persist-credentials: false
+
+      - name: Check out pinned zed interfaces
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: zed-pkg/zed-interfaces
+          ref: 61f654d5e4ca718abc4a280a641472466689c278
+          path: zed-interfaces
+          persist-credentials: false
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@630ae543ea3a38a9a4166f03376c02c50f408342 # v31.11.0
+
+      - name: Configure isolated output
+        run: echo "ZED_PACK_OUT=$RUNNER_TEMP/zed-pack" >> "$GITHUB_ENV"
+
+      - name: Validate package metadata
+        working-directory: source
+        run: nix develop --command python3 scripts/validate-zed-package.py --manifest-only
+
+      - name: Pack every zed target
+        working-directory: source
+        run: |
+          nix develop --command cargo run --quiet --locked \
+            --manifest-path ../zed-cli/Cargo.toml -- \
+            pack --out "$ZED_PACK_OUT"
+
+      - name: Verify repository and isolated language artifacts
+        working-directory: source
+        run: nix develop --command python3 scripts/validate-zed-package.py --artifacts "$ZED_PACK_OUT"
+
+      - name: Exercise publish planning without uploading
+        working-directory: source
+        run: |
+          nix develop --command cargo run --quiet --locked \
+            --manifest-path ../zed-cli/Cargo.toml -- \
+            publish --dry-run --skip-vcs-checks

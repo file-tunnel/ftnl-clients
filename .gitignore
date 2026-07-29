@@ -5,3 +5,7 @@ dist/
 .dart_tool/
 pubspec.lock
 build/
+.cache/
+.direnv/
+.zed-pack/
+.zed/

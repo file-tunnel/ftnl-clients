@@ -11,26 +11,27 @@ concurrency:
   cancel-in-progress: true
 jobs:
   clients:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
         target: [rust, typescript, dart, gleam]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4 # stable
         if: matrix.target == 'rust'
         with:
           components: rustfmt, clippy
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         if: matrix.target == 'typescript'
         with:
           node-version: 22
-      - uses: dart-lang/setup-dart@v1
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
         if: matrix.target == 'dart'
-      - uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         if: matrix.target == 'gleam'
         with:
           otp-version: "28"
@@ -38,10 +39,10 @@ jobs:
           rebar3-version: "3"
       - if: matrix.target == 'rust'
         working-directory: clients/rust
-        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test --all-targets
+        run: cargo fmt --check && cargo clippy --locked --all-targets -- -D warnings && cargo test --locked --all-targets
       - if: matrix.target == 'typescript'
         working-directory: clients/typescript
-        run: npm install && npm test
+        run: npm ci && npm test
       - if: matrix.target == 'dart'
         working-directory: clients/dart
         run: dart pub get && dart format --output=none --set-exit-if-changed . && dart analyze && dart test

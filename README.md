@@ -14,6 +14,12 @@ consistent surface in every language.
 | Dart | `clients/dart` | `ftnl_client` |
 | Gleam | `clients/gleam` | `ftnl_client` |
 
+The root [`.zpkg.toml`](.zpkg.toml) also makes this repository a
+[`zed-pkg`](https://github.com/zed-pkg) package. Zed produces one complete
+source snapshot plus independently re-rooted Node.js, Rust, Dart, and Gleam
+artifacts. CI packs every target and exercises publish planning without
+uploading.
+
 Each client covers:
 
 - create a tunnel;
@@ -44,10 +50,11 @@ Clients do not hide retries because an ambiguous timeout needs host UX.
 ## Validate
 
 ```bash
-(cd clients/rust && cargo test)
-(cd clients/typescript && npm install && npm test)
-(cd clients/dart && dart pub get && dart analyze && dart test)
-(cd clients/gleam && gleam deps download && gleam test)
+nix develop --command agent-check
 ```
+
+The root flake pins all four language toolchains and the automation linters.
+AI agents should begin with [`agents.md`](agents.md), which routes integration
+and maintainer work to the skills under `agents/skills/`.
 
 MIT licensed.

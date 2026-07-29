@@ -1,0 +1,45 @@
+[package]
+org = "file-tunnel"
+name = "ftnl-clients"
+version = "0.1.0"
+description = "Official polyglot clients for secure cross-device File Tunnels"
+license = "MIT"
+keywords = ["clients", "sdk", "polyglot", "uploads", "file-tunnel"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/file-tunnel/ftnl-clients"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [
+  ".env",
+  ".env.*",
+  ".direnv/**",
+  ".zed/**",
+  ".zed-pack/**",
+  ".cache/**",
+  "tmp/**",
+  "**/*.log",
+  ".DS_Store",
+]
+
+# Publish one complete source snapshot plus independently consumable packages.
+[targets.repository]
+dir = "."
+name = "ftnl-clients-repository"
+
+[targets.nodejs]
+dir = "clients/typescript"
+name = "ftnl-clients-nodejs"
+adapter = "node"
+
+[targets.rust]
+dir = "clients/rust"
+
+[targets.dart]
+dir = "clients/dart"
+
+[targets.gleam]
+dir = "clients/gleam"
