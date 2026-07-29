@@ -1,0 +1,13 @@
+name = "ftnl_client"
+version = "0.1.0"
+target = "erlang"
+description = "Transport-neutral Gleam client for File Tunnel v1"
+licences = ["MIT"]
+
+[dependencies]
+gleam_http = ">= 4.0.0 and < 5.0.0"
+gleam_json = ">= 3.1.0 and < 4.0.0"
+gleam_stdlib = ">= 0.68.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.9.0 and < 2.0.0"

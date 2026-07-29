@@ -1,0 +1,50 @@
+name: clients-ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: clients-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  clients:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [rust, typescript, dart, gleam]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        if: matrix.target == 'rust'
+        with:
+          components: rustfmt, clippy
+      - uses: actions/setup-node@v4
+        if: matrix.target == 'typescript'
+        with:
+          node-version: 22
+      - uses: dart-lang/setup-dart@v1
+        if: matrix.target == 'dart'
+      - uses: erlef/setup-beam@v1
+        if: matrix.target == 'gleam'
+        with:
+          otp-version: "28"
+          gleam-version: "1.16.0"
+          rebar3-version: "3"
+      - if: matrix.target == 'rust'
+        working-directory: clients/rust
+        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test --all-targets
+      - if: matrix.target == 'typescript'
+        working-directory: clients/typescript
+        run: npm install && npm test
+      - if: matrix.target == 'dart'
+        working-directory: clients/dart
+        run: dart pub get && dart format --output=none --set-exit-if-changed . && dart analyze && dart test
+      - if: matrix.target == 'gleam'
+        working-directory: clients/gleam
+        run: gleam format --check src test && gleam deps download && gleam test
