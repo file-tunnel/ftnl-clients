@@ -325,4 +325,24 @@ mod tests {
             None
         );
     }
+
+    proptest::proptest! {
+        #[test]
+        fn every_utf8_pairing_secret_round_trips_through_the_fragment(secret in ".*") {
+            let fragment = url::form_urlencoded::Serializer::new(String::new())
+                .append_pair("c", &secret)
+                .finish();
+            let uri = format!("https://portal.test/t/id#{fragment}");
+            proptest::prop_assert_eq!(pairing_secret_from_uri(&uri), Some(secret));
+        }
+
+        #[test]
+        fn query_parameters_never_become_pairing_secrets(secret in ".*") {
+            let query = url::form_urlencoded::Serializer::new(String::new())
+                .append_pair("c", &secret)
+                .finish();
+            let uri = format!("https://portal.test/t/id?{query}");
+            proptest::prop_assert_eq!(pairing_secret_from_uri(&uri), None);
+        }
+    }
 }

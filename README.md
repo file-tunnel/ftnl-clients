@@ -54,6 +54,9 @@ nix develop --command agent-check
 ```
 
 The root flake pins all four language toolchains and the automation linters.
+The formal-boundary workflow generates arbitrary UTF-8 pairing secrets and
+checks that Rust accepts them only from the URI fragment, never from query
+parameters.
 AI agents should begin with [`agents.md`](agents.md), which routes integration
 and maintainer work to the skills under `agents/skills/`.
 
