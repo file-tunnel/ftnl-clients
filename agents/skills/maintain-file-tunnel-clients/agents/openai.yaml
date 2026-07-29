@@ -1,0 +1,4 @@
+interface:
+  display_name: "Maintain File Tunnel Clients"
+  short_description: "Keep File Tunnel SDKs contract-compatible"
+  default_prompt: "Use $maintain-file-tunnel-clients to update the File Tunnel SDKs consistently."

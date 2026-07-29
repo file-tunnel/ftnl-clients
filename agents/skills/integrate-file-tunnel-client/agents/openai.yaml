@@ -1,0 +1,4 @@
+interface:
+  display_name: "Integrate File Tunnel Client"
+  short_description: "Add secure cross-device file transfers"
+  default_prompt: "Use $integrate-file-tunnel-client to add File Tunnel to this application."
