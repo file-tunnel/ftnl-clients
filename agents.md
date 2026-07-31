@@ -27,6 +27,7 @@ Treat each skill as additional instructions, not a replacement for this file.
 - Keep Rust, TypeScript, Dart, and Gleam behavior aligned with `ftnl-interfaces`.
 - Preserve language-idiomatic APIs; wire names remain the canonical `snake_case` contract.
 - Test the affected package while iterating, then run all four package suites before completing a cross-language change.
+- Run `nix develop --command agent-check` before completing a change.
 - Never commit credentials, generated build trees, package archives, or machine-specific state.
 
 ## Git workflow
