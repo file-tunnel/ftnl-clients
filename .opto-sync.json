@@ -1,0 +1,63 @@
+{
+  "schemaVersion": "opto-sync.adoption.v1",
+  "project": "file-tunnel/ftnl-clients",
+  "clientPackage": {
+    "package": "opto-sync/opto-sync-clients",
+    "repository": "https://github.com/opto-sync/opto-sync-clients",
+    "version": "0.2.0",
+    "commit": "068414c8ff7d4262d0a395959b5209d5908f0fcc"
+  },
+  "languages": [
+    "dart",
+    "gleam",
+    "rust",
+    "typescript"
+  ],
+  "dataScopes": [
+    "fileDeclarations",
+    "transferCheckpoints",
+    "tunnelMetadata",
+    "uploadQueue"
+  ],
+  "localStores": [
+    "indexeddb",
+    "sqlite"
+  ],
+  "transports": [
+    "http",
+    "websocket"
+  ],
+  "writeStrategies": [
+    "local-durable",
+    "local-then-remote",
+    "remote-confirmed"
+  ],
+  "conflictPolicy": {
+    "arrayStrategy": "mergeByKey",
+    "resolveByTimestamp": true,
+    "lwwKeys": [
+      "updatedAt"
+    ],
+    "arrayMatchKeys": [
+      "id"
+    ],
+    "tombstones": true
+  },
+  "background": {
+    "webServiceWorker": true,
+    "mobileWorker": true,
+    "desktopWorker": true
+  },
+  "security": {
+    "authenticatedTransport": true,
+    "encryptedAtRest": true,
+    "secretsInManifest": false
+  },
+  "rollout": {
+    "phase": "declared",
+    "owners": [
+      "file-tunnel"
+    ]
+  },
+  "notes": "Sync transfer metadata, resumable checkpoints, and queues only. Pairing secrets, bearer capabilities, and file bytes are outside this manifest and remain under the File Tunnel security and blob-transfer contracts."
+}
