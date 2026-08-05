@@ -25,11 +25,11 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout File Tunnel clients
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Checkout pinned Opto Sync validator
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: opto-sync/opto-sync-clients
           ref: da7459fdf3ce4096ce6b88aeed5fc98066f804d9
