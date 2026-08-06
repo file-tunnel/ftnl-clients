@@ -21,6 +21,32 @@ pub struct CreateTunnelRequest {
     pub expires_in_seconds: u32,
 }
 
+/// Whether a credential may travel to `host` in cleartext: loopback, a
+/// private/link-local IP, a single-label service name, or a cluster DNS suffix.
+fn cleartext_internal_host_allowed(host: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    if host.is_empty() || host == "localhost" || host.ends_with(".localhost") {
+        return true;
+    }
+    if host == "::1" || host.starts_with("fc") || host.starts_with("fd") || host.starts_with("fe8")
+    {
+        return true;
+    }
+    if let Some(octets) = host
+        .split('.')
+        .map(str::parse::<u8>)
+        .collect::<core::result::Result<Vec<_>, _>>()
+        .ok()
+        .filter(|octets| octets.len() == 4)
+    {
+        return matches!(
+            (octets[0], octets[1]),
+            (127, _) | (10, _) | (172, 16..=31) | (192, 168) | (169, 254)
+        );
+    }
+    !host.contains('.') || host.ends_with(".svc.cluster.local") || host.ends_with(".internal")
+}
+
 impl CreateTunnelRequest {
     pub fn images(application_id: impl Into<String>) -> Self {
         Self {
@@ -90,6 +116,11 @@ struct Problem {
 pub enum Error {
     #[error("invalid File Tunnel base URL")]
     InvalidBaseUrl(#[source] url::ParseError),
+    #[error(
+        "refusing cleartext http:// to public host {0:?}: use https://, an in-cluster \
+         address, or loopback"
+    )]
+    InsecureTransport(String),
     #[error("transport error")]
     Transport(#[source] reqwest::Error),
     #[error("File Tunnel request failed ({status}): {code}")]
@@ -99,12 +130,28 @@ pub enum Error {
 impl FileTunnelClient {
     pub fn new(base_url: &str) -> Result<Self, Error> {
         let mut base_url = Url::parse(base_url).map_err(Error::InvalidBaseUrl)?;
+        // A bearer token must not cross a public hop in the clear.
+        if base_url.scheme() == "http"
+            && !cleartext_internal_host_allowed(base_url.host_str().unwrap_or_default())
+        {
+            return Err(Error::InsecureTransport(
+                base_url.host_str().unwrap_or_default().to_owned(),
+            ));
+        }
         if !base_url.path().ends_with('/') {
             base_url.set_path(&format!("{}/", base_url.path()));
         }
         Ok(Self {
             base_url,
-            http: Client::new(),
+            // The default Client has no timeout and follows redirects, which
+            // would replay this request — and its Authorization header — to an
+            // attacker-controlled Location.
+            http: Client::builder()
+                .connect_timeout(std::time::Duration::from_secs(5))
+                .timeout(std::time::Duration::from_secs(30))
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .map_err(Error::Transport)?,
         })
     }
 
