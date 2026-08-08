@@ -24,19 +24,19 @@ jobs:
           path: source
           persist-credentials: false
 
-      - name: Check out pinned zed CLI
+      - name: Check out certified Zed CLI
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: zed-pkg/zed-cli
-          ref: 4e6154aaf28964fc3b063db01dc09cb86a368104
+          ref: 5d1d13119be5784f545a7d812cdfaae3ca120693
           path: zed-cli
           persist-credentials: false
 
-      - name: Check out pinned zed interfaces
+      - name: Check out matching Zed interfaces
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: zed-pkg/zed-interfaces
-          ref: 61f654d5e4ca718abc4a280a641472466689c278
+          ref: 92f046e393e7b421e9eea1afcc6c028ff8eb5859
           path: zed-interfaces
           persist-credentials: false
 
@@ -50,11 +50,11 @@ jobs:
         working-directory: source
         run: nix develop --command python3 scripts/validate-zed-package.py --manifest-only
 
-      - name: Pack every zed target
+      - name: Pack every Zed target
         working-directory: source
         run: |
           nix develop --command cargo run --quiet --locked \
-            --manifest-path ../zed-cli/Cargo.toml -- \
+            --manifest-path ../zed-cli/Cargo.toml --bin zed -- \
             pack --out "$ZED_PACK_OUT"
 
       - name: Verify repository and isolated language artifacts
@@ -65,5 +65,5 @@ jobs:
         working-directory: source
         run: |
           nix develop --command cargo run --quiet --locked \
-            --manifest-path ../zed-cli/Cargo.toml -- \
+            --manifest-path ../zed-cli/Cargo.toml --bin zed -- \
             publish --dry-run --skip-vcs-checks

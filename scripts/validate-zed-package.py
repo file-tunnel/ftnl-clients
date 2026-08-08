@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the File Tunnel zed package manifest and packed artifacts."""
+"""Validate the File Tunnel Zed package manifest and packed artifacts."""
 
 from __future__ import annotations
 
@@ -12,9 +12,18 @@ import tomllib
 
 NATIVE_MANIFESTS = {
     "nodejs": ("package.json",),
+    "python": ("pyproject.toml",),
+    "golang": ("go.mod",),
     "rust": ("Cargo.toml",),
     "dart": ("pubspec.yaml",),
     "gleam": ("gleam.toml",),
+    "erlang": ("rebar.config",),
+    "elixir": ("mix.exs",),
+    "java": ("pom.xml",),
+    "kotlin": ("build.gradle.kts",),
+    "ruby": ("ftnl-client.gemspec",),
+    "php": ("composer.json",),
+    "swift": ("Package.swift",),
 }
 
 
@@ -36,8 +45,11 @@ def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
 
     required = {"repository", *NATIVE_MANIFESTS}
     missing = sorted(required.difference(targets))
+    extras = sorted(set(targets).difference(required))
     if missing:
-        raise ValueError(f"missing zed targets: {', '.join(missing)}")
+        raise ValueError(f"missing Zed targets: {', '.join(missing)}")
+    if extras:
+        raise ValueError(f"unexpected Zed targets: {', '.join(extras)}")
 
     for target, section in targets.items():
         source = root / section["dir"]
@@ -52,7 +64,7 @@ def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
         for target, section in targets.items()
     }
     if len(expected_names) != len(targets):
-        raise ValueError("zed target package names must be unique")
+        raise ValueError("Zed target package names must be unique")
 
     return manifest, targets
 
@@ -146,7 +158,7 @@ def main() -> None:
         validate_artifacts(root, args.artifacts.resolve(), manifest, targets)
 
     suffix = " and packed artifacts" if args.artifacts is not None else ""
-    print(f"validated {len(targets)} zed targets{suffix}")
+    print(f"validated {len(targets)} Zed targets{suffix}")
 
 
 if __name__ == "__main__":
