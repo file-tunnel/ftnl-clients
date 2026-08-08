@@ -16,37 +16,64 @@ dir = ".vendor/.zed"
 [dependencies]
 "file-tunnel/ftnl-interfaces" = "^0.1.0"
 
+[workspace]
+members = ["clients/*"]
+
 [publish]
 include_readme = true
 tag_format = "v{version}"
-exclude = [
-  ".env",
-  ".env.*",
-  ".direnv/**",
-  ".zed/**",
-  ".zed-pack/**",
-  ".vendor/.zed/**",
-  ".cache/**",
-  "tmp/**",
-  "**/*.log",
-  ".DS_Store",
-]
+exclude = [".vendor/.zed/**", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/.gradle/**", "**/build/**"]
 
-# Publish one complete source snapshot plus independently consumable packages.
 [targets.repository]
 dir = "."
-name = "ftnl-clients-repository"
 
 [targets.nodejs]
 dir = "clients/typescript"
-name = "ftnl-clients-nodejs"
 adapter = "node"
+
+[targets.python]
+dir = "clients/python"
+adapter = "python"
+
+[targets.golang]
+dir = "clients/go"
+adapter = "go"
 
 [targets.rust]
 dir = "clients/rust"
+adapter = "rust"
 
 [targets.dart]
 dir = "clients/dart"
+adapter = "dart"
 
 [targets.gleam]
 dir = "clients/gleam"
+adapter = "none"
+
+[targets.erlang]
+dir = "clients/erlang"
+adapter = "none"
+
+[targets.elixir]
+dir = "clients/elixir"
+adapter = "none"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.ruby]
+dir = "clients/ruby"
+adapter = "none"
+
+[targets.php]
+dir = "clients/php"
+adapter = "none"
+
+[targets.swift]
+dir = "clients/swift"
