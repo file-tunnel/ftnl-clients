@@ -21,6 +21,22 @@ REQUIRED = {
     "php": "clients/php",
     "swift": "clients/swift",
 }
+EXPECTED_ADAPTERS = {
+    "nodejs": "node",
+    "python": "none",
+    "golang": "none",
+    "rust": "none",
+    "dart": "none",
+    "gleam": "none",
+    "erlang": "none",
+    "elixir": "none",
+    "java": "java",
+    "kotlin": "java",
+    "ruby": "none",
+    "php": "none",
+    "swift": "none",
+}
+ALLOWED_ADAPTERS = {"node", "java", "none"}
 FORBIDDEN = {"typescript", "python3", "gleamlang", "deno", "bun", "edge"}
 RUNTIMES = {"nodejs", "deno", "bun", "edge"}
 
@@ -47,10 +63,19 @@ bad = FORBIDDEN.intersection(targets)
 if bad:
     fail(f"noncanonical Zed targets present: {sorted(bad)}")
 for target, relative in REQUIRED.items():
-    if targets.get(target, {}).get("dir") != relative:
+    section = targets.get(target, {})
+    if section.get("dir") != relative:
         fail(f"target {target!r} must point to {relative!r}")
     if not (ROOT / relative).is_dir():
         fail(f"missing SDK directory: {relative}")
+    adapter = section.get("adapter")
+    if adapter not in ALLOWED_ADAPTERS:
+        fail(f"target {target!r} uses unsupported adapter {adapter!r}")
+    if adapter != EXPECTED_ADAPTERS[target]:
+        fail(
+            f"target {target!r} must use adapter "
+            f"{EXPECTED_ADAPTERS[target]!r}, got {adapter!r}"
+        )
 
 runtime_root = ROOT / "clients/typescript/runtimes"
 present = {path.name for path in runtime_root.iterdir() if path.is_dir()} if runtime_root.is_dir() else set()

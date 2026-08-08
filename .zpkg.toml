@@ -33,19 +33,19 @@ adapter = "node"
 
 [targets.python]
 dir = "clients/python"
-adapter = "python"
+adapter = "none"
 
 [targets.golang]
 dir = "clients/go"
-adapter = "go"
+adapter = "none"
 
 [targets.rust]
 dir = "clients/rust"
-adapter = "rust"
+adapter = "none"
 
 [targets.dart]
 dir = "clients/dart"
-adapter = "dart"
+adapter = "none"
 
 [targets.gleam]
 dir = "clients/gleam"
@@ -77,3 +77,4 @@ adapter = "none"
 
 [targets.swift]
 dir = "clients/swift"
+adapter = "none"
