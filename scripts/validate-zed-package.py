@@ -128,10 +128,17 @@ def validate_artifacts(
         ):
             raise ValueError(f"{target} artifact omitted its native manifest")
 
-        source_prefix = f"pkg/{section['dir'].strip('./')}/"
-        if not any(name.startswith(source_prefix) for name in repository_files):
+        source_root = f"pkg/{section['dir'].strip('./')}"
+        source_prefix = f"{source_root}/"
+        if not any(
+            name == source_root or name.startswith(source_prefix)
+            for name in repository_files
+        ):
             raise ValueError(f"repository artifact omitted the {target} source")
-        if any(name.startswith(source_prefix) for name in archive_members[target]):
+        if any(
+            name == source_root or name.startswith(source_prefix)
+            for name in archive_members[target]
+        ):
             raise ValueError(f"{target} artifact was not re-rooted")
 
 
