@@ -54,13 +54,61 @@ export class FileTunnelError extends Error {
   }
 }
 
+export interface FileTunnelClientOptions {
+  /** Whole-request timeout. The default is 30 seconds. */
+  timeoutMs?: number;
+}
+
+function internalHostAllowed(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost")) return true;
+  if (host === "::1" || host === "::") return true;
+  if (/^f[cd][0-9a-f]*:/i.test(host) || /^fe[89ab][0-9a-f]*:/i.test(host)) return true;
+
+  const octets = host.split(".").map(Number);
+  if (octets.length === 4 && octets.every((value) => Number.isInteger(value) && value >= 0 && value <= 255)) {
+    const a = octets[0]!;
+    const b = octets[1]!;
+    return a === 127 || a === 10 || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168) || (a === 169 && b === 254) || a === 0;
+  }
+
+  return host !== "" && (!host.includes(".") || host.endsWith(".svc.cluster.local")
+    || host.endsWith(".internal"));
+}
+
+function checkedBaseUrl(baseUrl: string): string {
+  const parsed = new URL(baseUrl);
+  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+    throw new TypeError(
+      `ftnl: unsupported URL scheme "${parsed.protocol}"; use https:// or an allowed internal http:// URL`,
+    );
+  }
+  if (parsed.protocol === "http:" && !internalHostAllowed(parsed.hostname)) {
+    throw new TypeError(
+      `ftnl: refusing cleartext http:// to public host "${parsed.hostname}": `
+        + "use https://, an in-cluster address, or loopback",
+    );
+  }
+  return parsed.toString().replace(/\/+$/, "");
+}
+
 export class FileTunnelClient {
   readonly #baseUrl: string;
   readonly #fetch: typeof fetch;
+  readonly #timeoutMs: number;
 
-  constructor(baseUrl: string, transport: typeof fetch = fetch) {
-    this.#baseUrl = baseUrl.replace(/\/+$/, "");
+  constructor(
+    baseUrl: string,
+    transport: typeof fetch = fetch,
+    options: FileTunnelClientOptions = {},
+  ) {
+    this.#baseUrl = checkedBaseUrl(baseUrl);
     this.#fetch = transport;
+    this.#timeoutMs = options.timeoutMs ?? 30_000;
+    if (!Number.isFinite(this.#timeoutMs) || this.#timeoutMs <= 0) {
+      throw new RangeError("ftnl: timeoutMs must be greater than zero");
+    }
   }
 
   async createTunnel(options: CreateTunnelOptions): Promise<Tunnel> {
@@ -203,7 +251,11 @@ export class FileTunnelClient {
   }
 
   async #request(path: string, init?: RequestInit): Promise<Response> {
-    const response = await this.#fetch(`${this.#baseUrl}${path}`, init);
+    const response = await this.#fetch(`${this.#baseUrl}${path}`, {
+      ...init,
+      redirect: "error",
+      signal: init?.signal ?? AbortSignal.timeout(this.#timeoutMs),
+    });
     if (response.ok) return response;
     let code = "request_failed";
     let message = `File Tunnel request failed (${response.status})`;

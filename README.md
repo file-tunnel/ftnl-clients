@@ -35,6 +35,25 @@ SDKs intentionally do not persist capabilities. Host apps decide whether a
 capability may survive process restart and must use platform secure storage if
 it does. Logs and error values redact authorization data.
 
+## Transport safety
+
+All clients reject public `http://` endpoints before a capability can be sent.
+Cleartext remains available for loopback, private/link-local addresses,
+single-label service names, and the documented `.svc.cluster.local` and
+`.internal` trust boundaries. Use `https://` for every public deployment.
+
+| Client | Request timeout | Redirect handling |
+|---|---|---|
+| Rust | 30 seconds by default; `FileTunnelClient::with_timeout` overrides it | disabled |
+| TypeScript | 30 seconds by default; `timeoutMs` overrides it | rejected |
+| Dart | 30 seconds by default; `requestTimeout` overrides it | disabled |
+| Gleam | owned by the caller-selected transport | owned by the caller-selected transport |
+
+Timeouts surface to the host instead of triggering hidden retries. The Gleam
+package intentionally returns transport-neutral requests, so the BEAM or
+JavaScript executor must apply a finite timeout and refuse redirects before it
+sends the request.
+
 The canonical wire contract lives in
 [`ftnl-interfaces`](https://github.com/file-tunnel/ftnl-interfaces). Types are
 kept locally reviewable during bootstrap; CI contract fixtures are designed to

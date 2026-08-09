@@ -58,13 +58,77 @@ final class FileDescriptor {
   );
 }
 
+bool _internalHostAllowed(String hostname) {
+  final host = hostname.toLowerCase().replaceAll(RegExp(r'^\[|\]$'), '');
+  if (host == 'localhost' || host.endsWith('.localhost')) return true;
+  if (host == '::1' || host == '::') return true;
+  if (RegExp(r'^f[cd][0-9a-f]*:', caseSensitive: false).hasMatch(host) ||
+      RegExp(r'^fe[89ab][0-9a-f]*:', caseSensitive: false).hasMatch(host)) {
+    return true;
+  }
+
+  final octets = host.split('.').map(int.tryParse).toList();
+  if (octets.length == 4 &&
+      octets.every((value) => value != null && value >= 0 && value <= 255)) {
+    final a = octets[0]!;
+    final b = octets[1]!;
+    return a == 127 ||
+        a == 10 ||
+        (a == 172 && b >= 16 && b <= 31) ||
+        (a == 192 && b == 168) ||
+        (a == 169 && b == 254) ||
+        a == 0;
+  }
+
+  return host.isNotEmpty &&
+      (!host.contains('.') ||
+          host.endsWith('.svc.cluster.local') ||
+          host.endsWith('.internal'));
+}
+
+Uri _checkedBaseUri(Uri baseUri) {
+  if (baseUri.scheme != 'https' && baseUri.scheme != 'http') {
+    throw ArgumentError.value(
+      baseUri,
+      'baseUri',
+      'ftnl: unsupported URL scheme "${baseUri.scheme}"; use https:// or an '
+          'allowed internal http:// URL',
+    );
+  }
+  if (baseUri.scheme == 'http' && !_internalHostAllowed(baseUri.host)) {
+    throw ArgumentError.value(
+      baseUri,
+      'baseUri',
+      'ftnl: refusing cleartext http:// to public host "${baseUri.host}": '
+          'use https://, an in-cluster address, or loopback',
+    );
+  }
+  return baseUri;
+}
+
+Duration _checkedTimeout(Duration timeout) {
+  if (timeout <= Duration.zero) {
+    throw ArgumentError.value(
+      timeout,
+      'requestTimeout',
+      'ftnl: request timeout must be greater than zero',
+    );
+  }
+  return timeout;
+}
+
 final class FileTunnelClient {
-  FileTunnelClient(Uri baseUri, {http.Client? httpClient})
-    : _baseUri = baseUri,
-      _http = httpClient ?? http.Client();
+  FileTunnelClient(
+    Uri baseUri, {
+    http.Client? httpClient,
+    Duration requestTimeout = const Duration(seconds: 30),
+  }) : _baseUri = _checkedBaseUri(baseUri),
+       _http = httpClient ?? http.Client(),
+       _requestTimeout = _checkedTimeout(requestTimeout);
 
   final Uri _baseUri;
   final http.Client _http;
+  final Duration _requestTimeout;
 
   Future<Tunnel> createTunnel({
     required String applicationId,
@@ -177,6 +241,7 @@ final class FileTunnelClient {
     String? contentType,
   }) async {
     final request = http.Request(method, _baseUri.resolve(path));
+    request.followRedirects = false;
     if (capability != null) {
       request.headers['authorization'] = 'Bearer $capability';
     }
@@ -188,7 +253,7 @@ final class FileTunnelClient {
           contentType ?? 'application/octet-stream';
       request.bodyBytes = body;
     }
-    final streamed = await _http.send(request);
+    final streamed = await _http.send(request).timeout(_requestTimeout);
     final response = await http.Response.fromStream(streamed);
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response;
