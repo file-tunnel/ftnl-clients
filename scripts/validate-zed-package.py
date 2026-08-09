@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the File Tunnel zed package manifest and packed artifacts."""
+"""Validate the File Tunnel Zed package manifest and packed artifacts."""
 
 from __future__ import annotations
 
@@ -12,15 +12,30 @@ import tomllib
 
 NATIVE_MANIFESTS = {
     "nodejs": ("package.json",),
+    "python": ("pyproject.toml",),
+    "golang": ("go.mod",),
     "rust": ("Cargo.toml",),
     "dart": ("pubspec.yaml",),
     "gleam": ("gleam.toml",),
+    "erlang": ("rebar.config",),
+    "elixir": ("mix.exs",),
+    "java": ("pom.xml",),
+    "kotlin": ("build.gradle.kts",),
+    "ruby": ("ftnl-client.gemspec",),
+    "php": ("composer.json",),
+    "swift": ("Package.swift",),
 }
 
 
 def read_toml(path: pathlib.Path) -> dict:
     with path.open("rb") as handle:
         return tomllib.load(handle)
+
+
+def target_package_name(package: dict, target: str, section: dict) -> str:
+    """Mirror zed-cli naming: the repository target keeps the package name."""
+    default_name = package["name"] if target == "repository" else f"{package['name']}-{target}"
+    return section.get("name", default_name)
 
 
 def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
@@ -36,8 +51,11 @@ def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
 
     required = {"repository", *NATIVE_MANIFESTS}
     missing = sorted(required.difference(targets))
+    extras = sorted(set(targets).difference(required))
     if missing:
-        raise ValueError(f"missing zed targets: {', '.join(missing)}")
+        raise ValueError(f"missing Zed targets: {', '.join(missing)}")
+    if extras:
+        raise ValueError(f"unexpected Zed targets: {', '.join(extras)}")
 
     for target, section in targets.items():
         source = root / section["dir"]
@@ -48,11 +66,11 @@ def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
                 raise ValueError(f"{target} is missing its native manifest: {filename}")
 
     expected_names = {
-        section.get("name", f"{package['name']}-{target}")
+        target_package_name(package, target, section)
         for target, section in targets.items()
     }
     if len(expected_names) != len(targets):
-        raise ValueError("zed target package names must be unique")
+        raise ValueError("Zed target package names must be unique")
 
     return manifest, targets
 
@@ -66,10 +84,8 @@ def validate_artifacts(
     package = manifest["package"]
     expected: dict[str, pathlib.Path] = {}
     for target, section in targets.items():
-        name = section.get("name", f"{package['name']}-{target}")
-        expected[target] = (
-            artifacts / f"{package['org']}-{name}-{package['version']}.tar.gz"
-        )
+        name = target_package_name(package, target, section)
+        expected[target] = artifacts / f"{package['org']}-{name}-{package['version']}.tar.gz"
 
     missing = [archive.name for archive in expected.values() if not archive.is_file()]
     if missing:
@@ -96,7 +112,7 @@ def validate_artifacts(
                 raise ValueError(f"{target} artifact has no derived .zpkg.toml")
             derived = tomllib.load(io.BytesIO(derived_member.read()))
 
-        expected_name = targets[target].get("name", f"{package['name']}-{target}")
+        expected_name = target_package_name(package, target, targets[target])
         if derived["package"]["name"] != expected_name:
             raise ValueError(f"{target} artifact has the wrong package name")
         if derived.get("targets"):
@@ -116,10 +132,17 @@ def validate_artifacts(
         ):
             raise ValueError(f"{target} artifact omitted its native manifest")
 
-        source_prefix = f"pkg/{section['dir'].strip('./')}/"
-        if not any(name.startswith(source_prefix) for name in repository_files):
+        source_root = f"pkg/{section['dir'].strip('./')}"
+        source_prefix = f"{source_root}/"
+        if not any(
+            name == source_root or name.startswith(source_prefix)
+            for name in repository_files
+        ):
             raise ValueError(f"repository artifact omitted the {target} source")
-        if any(name.startswith(source_prefix) for name in archive_members[target]):
+        if any(
+            name == source_root or name.startswith(source_prefix)
+            for name in archive_members[target]
+        ):
             raise ValueError(f"{target} artifact was not re-rooted")
 
 
@@ -146,7 +169,7 @@ def main() -> None:
         validate_artifacts(root, args.artifacts.resolve(), manifest, targets)
 
     suffix = " and packed artifacts" if args.artifacts is not None else ""
-    print(f"validated {len(targets)} zed targets{suffix}")
+    print(f"validated {len(targets)} Zed targets{suffix}")
 
 
 if __name__ == "__main__":
