@@ -5,9 +5,11 @@
 /// makes retry and capability persistence explicit.
 import gleam/http
 import gleam/http/request.{type Request}
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/result
 import gleam/string
 import gleam/uri
 
@@ -17,12 +19,15 @@ pub type Client {
 
 pub type ClientError {
   InvalidBaseUrl
+  UnsupportedScheme
+  InsecureTransport
   InvalidTunnelId
 }
 
 pub fn new(base_url: String) -> Result(Client, ClientError) {
   case uri.parse(base_url) {
-    Ok(_) -> {
+    Ok(parsed) -> {
+      use _ <- result.try(check_transport(parsed))
       let normalized = case string.ends_with(base_url, "/") {
         True -> string.drop_end(base_url, 1)
         False -> base_url
@@ -30,6 +35,64 @@ pub fn new(base_url: String) -> Result(Client, ClientError) {
       Ok(Client(base_url: normalized))
     }
     Error(_) -> Error(InvalidBaseUrl)
+  }
+}
+
+fn check_transport(parsed: uri.Uri) -> Result(Nil, ClientError) {
+  case parsed.scheme, parsed.host {
+    Some("https"), Some(_) -> Ok(Nil)
+    Some("http"), Some(host) ->
+      case internal_host_allowed(string.lowercase(host)) {
+        True -> Ok(Nil)
+        False -> Error(InsecureTransport)
+      }
+    Some(_), _ -> Error(UnsupportedScheme)
+    _, _ -> Error(InvalidBaseUrl)
+  }
+}
+
+fn internal_host_allowed(host: String) -> Bool {
+  host == "localhost"
+  || string.ends_with(host, ".localhost")
+  || host == "::1"
+  || host == "::"
+  || string.starts_with(host, "fc")
+  || string.starts_with(host, "fd")
+  || string.starts_with(host, "fe8")
+  || string.starts_with(host, "fe9")
+  || string.starts_with(host, "fea")
+  || string.starts_with(host, "feb")
+  || private_ipv4(host)
+  || {
+    !string.contains(host, ".")
+    || string.ends_with(host, ".svc.cluster.local")
+    || string.ends_with(host, ".internal")
+  }
+}
+
+fn private_ipv4(host: String) -> Bool {
+  case string.split(host, ".") {
+    [a, b, c, d] ->
+      case int.parse(a), int.parse(b), int.parse(c), int.parse(d) {
+        Ok(a), Ok(b), Ok(c), Ok(d)
+          if a >= 0
+          && a <= 255
+          && b >= 0
+          && b <= 255
+          && c >= 0
+          && c <= 255
+          && d >= 0
+          && d <= 255
+        ->
+          a == 127
+          || a == 10
+          || { a == 172 && b >= 16 && b <= 31 }
+          || { a == 192 && b == 168 }
+          || { a == 169 && b == 254 }
+          || a == 0
+        _, _, _, _ -> False
+      }
+    _ -> False
   }
 }
 

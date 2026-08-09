@@ -3,6 +3,7 @@
 use bytes::Bytes;
 use reqwest::{Client, Method, Response, StatusCode};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::{net::IpAddr, time::Duration};
 use url::Url;
 use uuid::Uuid;
 
@@ -19,6 +20,37 @@ pub struct CreateTunnelRequest {
     pub max_files: u16,
     pub max_file_bytes: u64,
     pub expires_in_seconds: u32,
+}
+
+const DEFAULT_REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+const DEFAULT_CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
+fn cleartext_internal_host_allowed(host: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    if host == "localhost" || host.ends_with(".localhost") {
+        return true;
+    }
+    if let Ok(address) = host.parse::<IpAddr>() {
+        return match address {
+            IpAddr::V4(address) => {
+                address.is_loopback()
+                    || address.is_private()
+                    || address.is_link_local()
+                    || address.is_unspecified()
+            }
+            IpAddr::V6(address) => {
+                let first = address.segments()[0];
+                address.is_loopback()
+                    || address.is_unspecified()
+                    || first & 0xfe00 == 0xfc00
+                    || first & 0xffc0 == 0xfe80
+            }
+        };
+    }
+    !host.is_empty()
+        && (!host.contains('.')
+            || host.ends_with(".svc.cluster.local")
+            || host.ends_with(".internal"))
 }
 
 impl CreateTunnelRequest {
@@ -90,6 +122,16 @@ struct Problem {
 pub enum Error {
     #[error("invalid File Tunnel base URL")]
     InvalidBaseUrl(#[source] url::ParseError),
+    #[error(
+        "unsupported File Tunnel URL scheme {0:?}; use https:// or an allowed internal http:// URL"
+    )]
+    UnsupportedScheme(String),
+    #[error(
+        "refusing cleartext http:// to public host {0:?}: use https://, an in-cluster address, or loopback"
+    )]
+    InsecureTransport(String),
+    #[error("request timeout must be greater than zero")]
+    InvalidTimeout,
     #[error("transport error")]
     Transport(#[source] reqwest::Error),
     #[error("File Tunnel request failed ({status}): {code}")]
@@ -98,13 +140,40 @@ pub enum Error {
 
 impl FileTunnelClient {
     pub fn new(base_url: &str) -> Result<Self, Error> {
+        Self::with_timeout(base_url, DEFAULT_REQUEST_TIMEOUT)
+    }
+
+    /// Construct a client with a whole-request timeout.
+    ///
+    /// Redirects are disabled so an authorization capability cannot be replayed
+    /// to a server-selected origin. Public endpoints must use TLS; cleartext is
+    /// reserved for loopback, private/link-local IPs, and internal service names.
+    pub fn with_timeout(base_url: &str, timeout: Duration) -> Result<Self, Error> {
+        if timeout.is_zero() {
+            return Err(Error::InvalidTimeout);
+        }
         let mut base_url = Url::parse(base_url).map_err(Error::InvalidBaseUrl)?;
+        match base_url.scheme() {
+            "https" => {}
+            "http" if cleartext_internal_host_allowed(base_url.host_str().unwrap_or_default()) => {}
+            "http" => {
+                return Err(Error::InsecureTransport(
+                    base_url.host_str().unwrap_or_default().to_owned(),
+                ));
+            }
+            scheme => return Err(Error::UnsupportedScheme(scheme.to_owned())),
+        }
         if !base_url.path().ends_with('/') {
             base_url.set_path(&format!("{}/", base_url.path()));
         }
         Ok(Self {
             base_url,
-            http: Client::new(),
+            http: Client::builder()
+                .connect_timeout(DEFAULT_CONNECT_TIMEOUT.min(timeout))
+                .timeout(timeout)
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .map_err(Error::Transport)?,
         })
     }
 
@@ -324,6 +393,41 @@ mod tests {
             pairing_secret_from_uri("https://portal.test/t/id?c=leaky"),
             None
         );
+    }
+
+    #[test]
+    fn public_cleartext_and_non_http_schemes_are_rejected() {
+        assert!(matches!(
+            FileTunnelClient::new("http://api.example.com"),
+            Err(Error::InsecureTransport(host)) if host == "api.example.com"
+        ));
+        assert!(matches!(
+            FileTunnelClient::new("file:///tmp/socket"),
+            Err(Error::UnsupportedScheme(scheme)) if scheme == "file"
+        ));
+    }
+
+    #[test]
+    fn internal_cleartext_endpoints_are_allowed() {
+        for endpoint in [
+            "http://127.0.0.1:8080",
+            "http://[::1]:8080",
+            "http://10.2.3.4",
+            "http://ftnl-api",
+            "http://ftnl-api.default.svc.cluster.local",
+        ] {
+            FileTunnelClient::new(endpoint).expect("internal endpoint should be allowed");
+        }
+    }
+
+    #[test]
+    fn custom_timeout_constructor_accepts_positive_duration() {
+        FileTunnelClient::with_timeout("https://api.example.com", Duration::from_millis(250))
+            .expect("custom timeout should construct a client");
+        assert!(matches!(
+            FileTunnelClient::with_timeout("https://api.example.com", Duration::ZERO),
+            Err(Error::InvalidTimeout)
+        ));
     }
 
     proptest::proptest! {
