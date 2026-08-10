@@ -23,14 +23,14 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    steps:
-      - name: Checkout File Tunnel clients
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Checkout pinned Opto Sync validator
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
+      steps:
+        - name: Checkout File Tunnel clients
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          with:
+            persist-credentials: false
+        - name: Checkout pinned Opto Sync validator
+          uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+          with:
           repository: opto-sync/opto-sync-clients
           ref: da7459fdf3ce4096ce6b88aeed5fc98066f804d9
           path: .opto-sync-tools
