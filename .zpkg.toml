@@ -22,7 +22,23 @@ members = ["clients/*"]
 [publish]
 include_readme = true
 tag_format = "v{version}"
-exclude = [".vendor/.zed/**", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/.gradle/**", "**/build/**"]
+exclude = [
+  ".env",
+  ".env.*",
+  ".direnv/**",
+  ".zed/**",
+  ".zed-pack/**",
+  ".vendor/.zed/**",
+  ".cache/**",
+  "tmp/**",
+  "**/*.log",
+  ".DS_Store",
+  "**/target/**",
+  "**/node_modules/**",
+  "**/.dart_tool/**",
+  "**/.gradle/**",
+  "**/build/**",
+]
 
 [targets.repository]
 dir = "."
