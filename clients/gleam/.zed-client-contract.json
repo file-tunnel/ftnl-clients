@@ -1,0 +1,10 @@
+{
+  "apiSurface": "clients/api-surface.json",
+  "apiSurfaceSha256": "cf0796aef8bd49bb7691f9b02d67731061599c803ea28000b9aa06527e242782",
+  "coordinate": "file-tunnel/ftnl-clients",
+  "runtime": "gleamlang",
+  "schemaId": "https://zpkg.tech/schemas/client-api.schema.json",
+  "schemaVersion": 1,
+  "target": "gleamlang",
+  "zedTarget": "gleamlang"
+}

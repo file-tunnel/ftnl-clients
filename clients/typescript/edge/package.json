@@ -1,0 +1,6 @@
+{
+  "exports": "./src/index.ts",
+  "name": "@file-tunnel/ftnl-client-edge",
+  "type": "module",
+  "version": "0.1.0"
+}
