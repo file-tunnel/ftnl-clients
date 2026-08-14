@@ -18,8 +18,8 @@ defmodule FtnlClient do
     :inets.start()
     :ssl.start()
     url = String.to_charlist(client.base_url <> "/" <> String.trim_leading(path, "/"))
-    headers = [{'accept', 'application/json'}] ++ if(client.token, do: [{'authorization', String.to_charlist("Bearer " <> client.token)}], else: [])
-    request = if body, do: {url, [{'content-type', 'application/json'} | headers], 'application/json', body}, else: {url, headers}
+    headers = [{~c"accept", ~c"application/json"}] ++ if(client.token, do: [{~c"authorization", String.to_charlist("Bearer " <> client.token)}], else: [])
+    request = if body, do: {url, [{~c"content-type", ~c"application/json"} | headers], ~c"application/json", body}, else: {url, headers}
     :httpc.request(method, request, [timeout: client.timeout], body_format: :binary)
   end
 end
