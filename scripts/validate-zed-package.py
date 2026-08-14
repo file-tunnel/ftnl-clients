@@ -11,19 +11,26 @@ import tomllib
 
 
 NATIVE_MANIFESTS = {
-    "nodejs": ("package.json",),
-    "python": ("pyproject.toml",),
-    "golang": ("go.mod",),
-    "rust": ("Cargo.toml",),
+    "c": ("CMakeLists.txt",),
+    "cpp": ("CMakeLists.txt",),
     "dart": ("pubspec.yaml",),
-    "gleam": ("gleam.toml",),
-    "erlang": ("rebar.config",),
     "elixir": ("mix.exs",),
+    "erlang": ("rebar.config",),
+    "gleamlang": ("gleam.toml",),
+    "golang": ("go.mod",),
     "java": ("pom.xml",),
     "kotlin": ("build.gradle.kts",),
-    "ruby": ("ftnl-client.gemspec",),
     "php": ("composer.json",),
+    "python3": ("pyproject.toml",),
+    "ruby": ("ftnl-client.gemspec",),
+    "rust": ("Cargo.toml",),
+    "rust-wasm": ("Cargo.toml",),
     "swift": ("Package.swift",),
+    "typescript-bun": ("package.json",),
+    "typescript-deno": ("deno.json",),
+    "typescript-edge": ("package.json",),
+    "typescript-nodejs": ("package.json",),
+    "zig": ("build.zig",),
 }
 
 

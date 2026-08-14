@@ -6,6 +6,7 @@ dist/
 pubspec.lock
 build/
 .gradle/
+__pycache__/
 .cache/
 .direnv/
 .zed-pack/

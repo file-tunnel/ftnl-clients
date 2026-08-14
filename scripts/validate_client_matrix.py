@@ -1,43 +1,40 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+SDK_MATRIX = json.loads((ROOT / "clients/sdk-matrix.json").read_text(encoding="utf-8"))
 REQUIRED = {
-    "nodejs": "clients/typescript",
-    "python": "clients/python",
-    "golang": "clients/go",
-    "rust": "clients/rust",
-    "dart": "clients/dart",
-    "gleam": "clients/gleam",
-    "erlang": "clients/erlang",
-    "elixir": "clients/elixir",
-    "java": "clients/java",
-    "kotlin": "clients/kotlin",
-    "ruby": "clients/ruby",
-    "php": "clients/php",
-    "swift": "clients/swift",
+    section["zed_target"]: section["dir"]
+    for section in SDK_MATRIX["targets"].values()
 }
 EXPECTED_ADAPTERS = {
-    "nodejs": "node",
-    "python": "none",
-    "golang": "none",
-    "rust": "none",
-    "dart": "none",
-    "gleam": "none",
-    "erlang": "none",
+    "c": "none",
+    "cpp": "none",
+    "dart": "dart",
     "elixir": "none",
+    "erlang": "none",
+    "gleamlang": "none",
+    "golang": "go",
     "java": "java",
     "kotlin": "java",
-    "ruby": "none",
     "php": "none",
+    "python3": "none",
+    "ruby": "none",
+    "rust": "rust",
+    "rust-wasm": "rust",
     "swift": "none",
+    "typescript-bun": "node",
+    "typescript-deno": "none",
+    "typescript-edge": "none",
+    "typescript-nodejs": "node",
+    "zig": "none",
 }
-ALLOWED_ADAPTERS = {"node", "java", "none"}
-FORBIDDEN = {"typescript", "python3", "gleamlang", "deno", "bun", "edge"}
+ALLOWED_ADAPTERS = {"dart", "go", "java", "node", "none", "rust"}
 RUNTIMES = {"nodejs", "deno", "bun", "edge"}
 
 
@@ -59,9 +56,11 @@ if "file-tunnel/ftnl-lib" in dependencies:
     fail("do not invent an ftnl-lib dependency before that repository exists")
 
 targets = manifest.get("targets", {})
-bad = FORBIDDEN.intersection(targets)
-if bad:
-    fail(f"noncanonical Zed targets present: {sorted(bad)}")
+expected_targets = {"repository", *REQUIRED}
+if set(targets) != expected_targets:
+    missing = sorted(expected_targets.difference(targets))
+    extras = sorted(set(targets).difference(expected_targets))
+    fail(f"Zed target drift: missing={missing}, extras={extras}")
 for target, relative in REQUIRED.items():
     section = targets.get(target, {})
     if section.get("dir") != relative:
