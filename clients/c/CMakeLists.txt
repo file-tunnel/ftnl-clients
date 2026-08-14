@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.20)
+project(ftnl_client C)
+add_library(ftnl_client src/ftnl_client.c)
+target_include_directories(ftnl_client PUBLIC include)
+target_compile_features(ftnl_client PUBLIC c_std_11)
