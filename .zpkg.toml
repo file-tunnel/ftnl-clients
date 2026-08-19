@@ -45,15 +45,15 @@ dir = "."
 
 [targets.golang]
 dir = "clients/go"
-adapter = "go"
+adapter = "none"
 
 [targets.rust]
 dir = "clients/rust"
-adapter = "rust"
+adapter = "none"
 
 [targets.dart]
 dir = "clients/dart"
-adapter = "dart"
+adapter = "none"
 
 [targets.erlang]
 dir = "clients/erlang"
@@ -97,28 +97,17 @@ adapter = "none"
 
 [targets.rust-wasm]
 dir = "clients/wasm"
-adapter = "rust"
+adapter = "node"
 
-[targets.gleamlang]
+
+[targets.gleam]
 dir = "clients/gleam"
 adapter = "none"
 
-[targets.python3]
+[targets.python]
 dir = "clients/python"
 adapter = "none"
 
-[targets.typescript-nodejs]
+[targets.nodejs]
 dir = "clients/typescript"
 adapter = "node"
-
-[targets.typescript-deno]
-dir = "clients/typescript/deno"
-adapter = "none"
-
-[targets.typescript-bun]
-dir = "clients/typescript/bun"
-adapter = "node"
-
-[targets.typescript-edge]
-dir = "clients/typescript/edge"
-adapter = "none"
