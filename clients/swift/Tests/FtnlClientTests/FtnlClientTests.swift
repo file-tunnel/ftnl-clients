@@ -26,7 +26,7 @@ final class FtnlClientTests: XCTestCase {
             switch (request.httpMethod, path) {
             case ("POST", "/v1/tunnels"):
                 XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
-                let body = try XCTUnwrap(request.httpBody)
+                let body = try requestBody(request)
                 XCTAssertTrue(String(decoding: body, as: UTF8.self).contains("\"application_id\":\"swift-conformance\""))
                 return .json(201, """
                     {"api_version":"v1","tunnel_id":"\(tunnelId)","status":"waiting",\
@@ -35,7 +35,7 @@ final class FtnlClientTests: XCTestCase {
                     """)
             case ("POST", "/v1/tunnels/\(tunnelId)/claim"):
                 XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
-                XCTAssertTrue(String(decoding: try XCTUnwrap(request.httpBody), as: UTF8.self).contains(pairingSecret))
+                XCTAssertTrue(String(decoding: try requestBody(request), as: UTF8.self).contains(pairingSecret))
                 return .json(200, """
                     {"phone_capability":"\(phoneCapability)","expires_at":"2030-01-01T00:00:00Z"}
                     """)
@@ -56,7 +56,7 @@ final class FtnlClientTests: XCTestCase {
             case ("PUT", "/v1/tunnels/\(tunnelId)/files/\(fileId)/content"):
                 checkCapability(request, phoneCapability)
                 XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/octet-stream")
-                uploaded = request.httpBody
+                uploaded = try requestBody(request)
                 return .empty(204)
             case ("GET", "/v1/tunnels/\(tunnelId)/files/\(fileId)/content"):
                 checkCapability(request, desktopCapability)
@@ -184,6 +184,22 @@ final class FtnlClientTests: XCTestCase {
     private func checkCapability(_ request: URLRequest, _ expected: String) {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer \(expected)")
         XCTAssertNil(request.url?.query)
+    }
+
+    private func requestBody(_ request: URLRequest) throws -> Data {
+        if let body = request.httpBody { return body }
+        let stream = try XCTUnwrap(request.httpBodyStream)
+        stream.open()
+        defer { stream.close() }
+        var result = Data()
+        var buffer = [UInt8](repeating: 0, count: 4096)
+        while true {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { throw try XCTUnwrap(stream.streamError) }
+            if count == 0 { break }
+            result.append(contentsOf: buffer.prefix(count))
+        }
+        return result
     }
 }
 

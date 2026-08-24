@@ -205,7 +205,7 @@
       "coordinate": "file-tunnel/ftnl-clients",
       "dir": "clients/swift",
       "implementationFileCount": 4,
-      "implementationSha256": "672090da43aa9afad5e6d382ed970ba659dfb0f555a598968f3d7e42295f13bd",
+      "implementationSha256": "d52e1f7916c6806d669f6e5edd24996f6c44f5f770e0d2aaa076d86e5cce5013",
       "runtime": "swift",
       "schemaId": "https://zpkg.tech/schemas/client-api.schema.json",
       "schemaVersion": 1,
