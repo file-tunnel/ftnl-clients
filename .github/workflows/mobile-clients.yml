@@ -1,0 +1,74 @@
+name: mobile-clients
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mobile-clients.yml"
+      - "clients/java/**"
+      - "clients/swift/**"
+      - "clients/dart/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/mobile-clients.yml"
+      - "clients/java/**"
+      - "clients/swift/**"
+      - "clients/dart/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-clients-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  java:
+    name: Java / Android-compatible JVM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Compile and run the Java transfer contract
+        run: clients/java/test.sh
+
+  swift:
+    name: Swift Package
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Report the hosted Swift toolchain
+        run: swift --version
+      - name: Build and run the Swift transfer contract
+        run: swift test --package-path clients/swift
+
+  flutter-dart:
+    name: Flutter / Dart package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
+        with:
+          flutter-version: "3.44.2"
+          channel: stable
+          cache: true
+      - name: Analyze and run the Flutter/Dart transfer contract
+        working-directory: clients/dart
+        run: |
+          flutter pub get
+          dart format --output=none --set-exit-if-changed .
+          flutter analyze
+          flutter test

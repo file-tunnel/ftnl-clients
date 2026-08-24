@@ -5,5 +5,8 @@ let package = Package(
     name: "FtnlClient",
     platforms: [.iOS(.v15), .macOS(.v12)],
     products: [.library(name: "FtnlClient", targets: ["FtnlClient"])],
-    targets: [.target(name: "FtnlClient")]
+    targets: [
+        .target(name: "FtnlClient"),
+        .testTarget(name: "FtnlClientTests", dependencies: ["FtnlClient"])
+    ]
 )
