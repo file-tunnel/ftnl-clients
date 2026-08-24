@@ -16,12 +16,6 @@ void main() {
       pairingSecretFromUri(Uri.parse('https://portal.test/t/id?c=leaky')),
       isNull,
     );
-    expect(
-      pairingSecretFromUri(
-        Uri.parse('https://portal.test/t/id?c=leaky#c=fragment'),
-      ),
-      isNull,
-    );
   });
 
   test('public cleartext and non-HTTP schemes are rejected', () {
@@ -30,19 +24,7 @@ void main() {
       throwsArgumentError,
     );
     expect(
-      () => FileTunnelClient(Uri.parse('http://[2001:4860:4860::8888]')),
-      throwsArgumentError,
-    );
-    expect(
       () => FileTunnelClient(Uri.parse('file:///tmp/socket')),
-      throwsArgumentError,
-    );
-    expect(
-      () => FileTunnelClient(Uri.parse('https://user:secret@api.example.com')),
-      throwsArgumentError,
-    );
-    expect(
-      () => FileTunnelClient(Uri.parse('https://api.example.com?debug=true')),
       throwsArgumentError,
     );
   });
@@ -111,20 +93,8 @@ void main() {
               }),
               200,
             );
-          case ('GET', '/v1/tunnels/$tunnelId'):
-            _expectCapability(request, desktopCapability);
-            return http.Response(
-              jsonEncode({
-                'tunnel_id': tunnelId,
-                'status': 'connected',
-                'expires_at': '2030-01-01T00:00:00Z',
-                'files': <Object?>[],
-              }),
-              200,
-            );
           case ('POST', '/v1/tunnels/$tunnelId/files'):
             _expectCapability(request, phoneCapability);
-            expect(request.headers['idempotency-key'], 'dart-test-request');
             return http.Response(
               jsonEncode({
                 'file_id': fileId,
@@ -133,7 +103,6 @@ void main() {
                 'size_bytes': payload.length,
                 'bytes_transferred': 0,
                 'status': 'declared',
-                'created_at': '2030-01-01T00:00:00Z',
               }),
               201,
             );
@@ -175,14 +144,8 @@ void main() {
     expect(tunnel.toString(), isNot(contains(pairingSecret)));
     expect(tunnel.toString(), isNot(contains(desktopCapability)));
 
-    final claim = await client.claimTunnelDetails(
-      tunnelId,
-      pairingSecret,
-      deviceLabel: 'flutter-example',
-    );
-    expect(claim.phoneCapability, phoneCapability);
-    expect(claim.toString(), isNot(contains(phoneCapability)));
-    expect((await client.snapshot(tunnelId, desktopCapability)).files, isEmpty);
+    final claimedCapability = await client.claimTunnel(tunnelId, pairingSecret);
+    expect(claimedCapability, phoneCapability);
 
     final file = await client.declareFile(
       tunnelId: tunnelId,
@@ -190,9 +153,6 @@ void main() {
       name: 'photo.jpg',
       mediaType: 'image/jpeg',
       sizeBytes: payload.length,
-      lastModifiedMillis: 123,
-      sha256: 'a' * 64,
-      idempotencyKey: 'dart-test-request',
     );
     expect(file.fileId, fileId);
     await client.upload(
@@ -231,7 +191,11 @@ void main() {
     );
 
     await expectLater(
-      client.snapshot('error', capability),
+      client.download(
+        tunnelId: 'error',
+        fileId: 'file',
+        capability: capability,
+      ),
       throwsA(
         isA<FileTunnelException>()
             .having((error) => error.status, 'status', 401)

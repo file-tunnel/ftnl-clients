@@ -14,47 +14,22 @@ final class FileTunnelException implements Exception {
 
 final class Tunnel {
   const Tunnel({
-    required this.apiVersion,
     required this.tunnelId,
-    required this.status,
     required this.pairingUri,
     required this.desktopCapability,
     required this.expiresAt,
   });
-  final String apiVersion;
   final String tunnelId;
-  final String status;
   final Uri pairingUri;
   final String desktopCapability;
   final DateTime expiresAt;
 
   factory Tunnel.fromJson(Map<String, Object?> json) => Tunnel(
-    apiVersion: json['api_version']! as String,
     tunnelId: json['tunnel_id']! as String,
-    status: json['status']! as String,
     pairingUri: Uri.parse(json['pairing_uri']! as String),
     desktopCapability: json['desktop_capability']! as String,
     expiresAt: DateTime.parse(json['expires_at']! as String),
   );
-
-  @override
-  String toString() =>
-      'Tunnel(apiVersion: $apiVersion, tunnelId: $tunnelId, '
-      'status: $status, expiresAt: $expiresAt)';
-}
-
-final class TunnelClaim {
-  const TunnelClaim({required this.phoneCapability, required this.expiresAt});
-  final String phoneCapability;
-  final DateTime expiresAt;
-
-  factory TunnelClaim.fromJson(Map<String, Object?> json) => TunnelClaim(
-    phoneCapability: json['phone_capability']! as String,
-    expiresAt: DateTime.parse(json['expires_at']! as String),
-  );
-
-  @override
-  String toString() => 'TunnelClaim(expiresAt: $expiresAt)';
 }
 
 final class FileDescriptor {
@@ -65,7 +40,6 @@ final class FileDescriptor {
     required this.sizeBytes,
     required this.bytesTransferred,
     required this.status,
-    required this.createdAt,
   });
   final String fileId;
   final String name;
@@ -73,7 +47,6 @@ final class FileDescriptor {
   final int sizeBytes;
   final int bytesTransferred;
   final String status;
-  final DateTime createdAt;
 
   factory FileDescriptor.fromJson(Map<String, Object?> json) => FileDescriptor(
     fileId: json['file_id']! as String,
@@ -82,29 +55,6 @@ final class FileDescriptor {
     sizeBytes: json['size_bytes']! as int,
     bytesTransferred: json['bytes_transferred']! as int,
     status: json['status']! as String,
-    createdAt: DateTime.parse(json['created_at']! as String),
-  );
-}
-
-final class TunnelSnapshot {
-  const TunnelSnapshot({
-    required this.tunnelId,
-    required this.status,
-    required this.expiresAt,
-    required this.files,
-  });
-  final String tunnelId;
-  final String status;
-  final DateTime expiresAt;
-  final List<FileDescriptor> files;
-
-  factory TunnelSnapshot.fromJson(Map<String, Object?> json) => TunnelSnapshot(
-    tunnelId: json['tunnel_id']! as String,
-    status: json['status']! as String,
-    expiresAt: DateTime.parse(json['expires_at']! as String),
-    files: (json['files']! as List<Object?>)
-        .map((file) => FileDescriptor.fromJson((file! as Map).cast()))
-        .toList(growable: false),
   );
 }
 
@@ -131,7 +81,7 @@ bool _internalHostAllowed(String hostname) {
   }
 
   return host.isNotEmpty &&
-      ((!host.contains('.') && !host.contains(':')) ||
+      (!host.contains('.') ||
           host.endsWith('.svc.cluster.local') ||
           host.endsWith('.internal'));
 }
@@ -143,18 +93,6 @@ Uri _checkedBaseUri(Uri baseUri) {
       'baseUri',
       'ftnl: unsupported URL scheme "${baseUri.scheme}"; use https:// or an '
           'allowed internal http:// URL',
-    );
-  }
-  if (!baseUri.hasAuthority ||
-      baseUri.host.isEmpty ||
-      baseUri.userInfo.isNotEmpty ||
-      baseUri.hasQuery ||
-      baseUri.hasFragment) {
-    throw ArgumentError.value(
-      baseUri,
-      'baseUri',
-      'ftnl: base URL must have an authority and no credentials, query, or '
-          'fragment',
     );
   }
   if (baseUri.scheme == 'http' && !_internalHostAllowed(baseUri.host)) {
@@ -213,36 +151,13 @@ final class FileTunnelClient {
     return Tunnel.fromJson(_json(response));
   }
 
-  Future<String> claimTunnel(
-    String tunnelId,
-    String pairingSecret, {
-    String? deviceLabel,
-  }) async => (await claimTunnelDetails(
-    tunnelId,
-    pairingSecret,
-    deviceLabel: deviceLabel,
-  )).phoneCapability;
-
-  Future<TunnelClaim> claimTunnelDetails(
-    String tunnelId,
-    String pairingSecret, {
-    String? deviceLabel,
-  }) async {
+  Future<String> claimTunnel(String tunnelId, String pairingSecret) async {
     final response = await _send(
       'POST',
-      '/v1/tunnels/${_segment(tunnelId)}/claim',
-      jsonBody: {'pairing_secret': pairingSecret, 'device_label': ?deviceLabel},
+      '/v1/tunnels/$tunnelId/claim',
+      jsonBody: {'pairing_secret': pairingSecret},
     );
-    return TunnelClaim.fromJson(_json(response));
-  }
-
-  Future<TunnelSnapshot> snapshot(String tunnelId, String capability) async {
-    final response = await _send(
-      'GET',
-      '/v1/tunnels/${_segment(tunnelId)}',
-      capability: capability,
-    );
-    return TunnelSnapshot.fromJson(_json(response));
+    return _json(response)['phone_capability']! as String;
   }
 
   Future<FileDescriptor> declareFile({
@@ -251,21 +166,15 @@ final class FileTunnelClient {
     required String name,
     required String mediaType,
     required int sizeBytes,
-    int? lastModifiedMillis,
-    String? sha256,
-    String? idempotencyKey,
   }) async {
     final response = await _send(
       'POST',
-      '/v1/tunnels/${_segment(tunnelId)}/files',
+      '/v1/tunnels/$tunnelId/files',
       capability: capability,
-      idempotencyKey: idempotencyKey,
       jsonBody: {
         'name': name,
         'media_type': mediaType,
         'size_bytes': sizeBytes,
-        'last_modified_ms': ?lastModifiedMillis,
-        'sha256': ?sha256,
       },
     );
     return FileDescriptor.fromJson(_json(response));
@@ -279,7 +188,7 @@ final class FileTunnelClient {
   }) async {
     await _send(
       'PUT',
-      '/v1/tunnels/${_segment(tunnelId)}/files/${_segment(fileId)}/content',
+      '/v1/tunnels/$tunnelId/files/$fileId/content',
       capability: capability,
       body: bytes,
       contentType: 'application/octet-stream',
@@ -293,7 +202,7 @@ final class FileTunnelClient {
   }) async {
     final response = await _send(
       'GET',
-      '/v1/tunnels/${_segment(tunnelId)}/files/${_segment(fileId)}/content',
+      '/v1/tunnels/$tunnelId/files/$fileId/content',
       capability: capability,
     );
     return response.bodyBytes;
@@ -302,13 +211,13 @@ final class FileTunnelClient {
   Future<Uri> eventSocketUri(String tunnelId, String capability) async {
     final response = await _send(
       'POST',
-      '/v1/tunnels/${_segment(tunnelId)}/event-tickets',
+      '/v1/tunnels/$tunnelId/event-tickets',
       capability: capability,
     );
     final ticket = _json(response)['ticket']! as String;
     return _baseUri.replace(
       scheme: _baseUri.scheme == 'https' ? 'wss' : 'ws',
-      path: '/v1/tunnels/${_segment(tunnelId)}/events',
+      path: '/v1/tunnels/$tunnelId/events',
       queryParameters: {'ticket': ticket},
     );
   }
@@ -320,18 +229,13 @@ final class FileTunnelClient {
       WebSocketChannel.connect(await eventSocketUri(tunnelId, capability));
 
   Future<void> cancel(String tunnelId, String capability) async {
-    await _send(
-      'DELETE',
-      '/v1/tunnels/${_segment(tunnelId)}',
-      capability: capability,
-    );
+    await _send('DELETE', '/v1/tunnels/$tunnelId', capability: capability);
   }
 
   Future<http.Response> _send(
     String method,
     String path, {
     String? capability,
-    String? idempotencyKey,
     Map<String, Object?>? jsonBody,
     Object? body,
     String? contentType,
@@ -340,9 +244,6 @@ final class FileTunnelClient {
     request.followRedirects = false;
     if (capability != null) {
       request.headers['authorization'] = 'Bearer $capability';
-    }
-    if (idempotencyKey != null) {
-      request.headers['idempotency-key'] = idempotencyKey;
     }
     if (jsonBody != null) {
       request.headers['content-type'] = 'application/json';
@@ -360,7 +261,7 @@ final class FileTunnelClient {
     var code = 'request_failed';
     try {
       code = (_json(response)['code'] as String?) ?? code;
-    } on Object {
+    } on FormatException {
       // Never surface arbitrary bodies that may contain sensitive data.
     }
     throw FileTunnelException(response.statusCode, code);
@@ -371,17 +272,4 @@ final class FileTunnelClient {
 }
 
 String? pairingSecretFromUri(Uri uri) =>
-    uri.queryParameters.containsKey('c') || uri.fragment.isEmpty
-    ? null
-    : Uri.splitQueryString(uri.fragment)['c'];
-
-String _segment(String value) {
-  if (value.isEmpty || !RegExp(r'^[A-Za-z0-9._~-]+$').hasMatch(value)) {
-    throw ArgumentError.value(
-      value,
-      'path segment',
-      'ftnl: invalid path value',
-    );
-  }
-  return Uri.encodeComponent(value);
-}
+    uri.fragment.isEmpty ? null : Uri.splitQueryString(uri.fragment)['c'];

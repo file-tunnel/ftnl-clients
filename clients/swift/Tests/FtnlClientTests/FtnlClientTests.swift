@@ -98,7 +98,8 @@ final class FtnlClientTests: XCTestCase {
         )
         XCTAssertEqual(claim.phoneCapability, phoneCapability)
         XCTAssertFalse(claim.description.contains(phoneCapability))
-        XCTAssertTrue(try await client.snapshot(tunnelId: tunnelId, capability: desktopCapability).files.isEmpty)
+        let snapshot = try await client.snapshot(tunnelId: tunnelId, capability: desktopCapability)
+        XCTAssertTrue(snapshot.files.isEmpty)
 
         let file = try await client.declareFile(
             tunnelId: tunnelId,
@@ -113,10 +114,12 @@ final class FtnlClientTests: XCTestCase {
         XCTAssertEqual(file.fileId, fileId)
         try await client.upload(tunnelId: tunnelId, fileId: fileId, capability: phoneCapability, data: payload)
         XCTAssertEqual(uploaded, payload)
-        XCTAssertEqual(
-            try await client.download(tunnelId: tunnelId, fileId: fileId, capability: desktopCapability),
-            payload
+        let downloaded = try await client.download(
+            tunnelId: tunnelId,
+            fileId: fileId,
+            capability: desktopCapability
         )
+        XCTAssertEqual(downloaded, payload)
 
         let eventURL = try await client.eventSocketURL(tunnelId: tunnelId, capability: desktopCapability)
         XCTAssertEqual(eventURL.scheme, "wss")
