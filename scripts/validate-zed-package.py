@@ -16,22 +16,20 @@ NATIVE_MANIFESTS = {
     "dart": ("pubspec.yaml",),
     "elixir": ("mix.exs",),
     "erlang": ("rebar.config",),
-    "gleamlang": ("gleam.toml",),
+    "gleam": ("gleam.toml",),
     "golang": ("go.mod",),
     "java": ("pom.xml",),
     "kotlin": ("build.gradle.kts",),
+    "nodejs": ("package.json",),
     "php": ("composer.json",),
-    "python3": ("pyproject.toml",),
+    "python": ("pyproject.toml",),
     "ruby": ("ftnl-client.gemspec",),
     "rust": ("Cargo.toml",),
     "rust-wasm": ("Cargo.toml",),
     "swift": ("Package.swift",),
-    "typescript-bun": ("package.json",),
-    "typescript-deno": ("deno.json",),
-    "typescript-edge": ("package.json",),
-    "typescript-nodejs": ("package.json",),
     "zig": ("build.zig",),
 }
+FORBIDDEN_TARGETS = {"typescript", "python3", "gleamlang", "deno", "bun", "edge"}
 
 
 def read_toml(path: pathlib.Path) -> dict:
@@ -55,6 +53,10 @@ def validate_manifest(root: pathlib.Path) -> tuple[dict, dict]:
     targets = manifest.get("targets", {})
     if targets.get("repository", {}).get("dir") != ".":
         raise ValueError("the repository target must package the repository root")
+
+    forbidden = sorted(FORBIDDEN_TARGETS.intersection(targets))
+    if forbidden:
+        raise ValueError(f"noncanonical Zed targets present: {', '.join(forbidden)}")
 
     required = {"repository", *NATIVE_MANIFESTS}
     missing = sorted(required.difference(targets))
