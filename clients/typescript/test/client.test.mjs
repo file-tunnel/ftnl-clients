@@ -43,6 +43,22 @@ test("cleartext remains available for trusted local and in-cluster endpoints", (
   }
 });
 
+test("event socket URL is derived without mutating the HTTP base", async () => {
+  const client = new FileTunnelClient("https://api.test/", async (url) => {
+    if (String(url).endsWith("/event-tickets")) {
+      return new Response(JSON.stringify({ ticket: "tix" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response("{}", { status: 404 });
+  });
+  assert.equal(
+    await client.eventSocketUrl("abc", "cap"),
+    "wss://api.test/v1/tunnels/abc/events?ticket=tix",
+  );
+});
+
 test("timeout must be positive and redirects are refused", async () => {
   assert.throws(
     () => new FileTunnelClient("https://api.example.com", fetch, { timeoutMs: 0 }),
