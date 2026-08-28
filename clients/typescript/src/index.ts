@@ -215,11 +215,10 @@ export class FileTunnelClient {
       `/v1/tunnels/${encodeURIComponent(tunnelId)}/event-tickets`,
       { ...this.#authorized(capability), method: "POST" },
     );
-    const base = new URL(this.#baseUrl);
-    base.protocol = base.protocol === "https:" ? "wss:" : "ws:";
-    base.pathname = `/v1/tunnels/${encodeURIComponent(tunnelId)}/events`;
-    base.search = new URLSearchParams({ ticket: response.ticket as string }).toString();
-    return base.toString();
+    const host = new URL(this.#baseUrl);
+    const scheme = host.protocol === "https:" ? "wss:" : "ws:";
+    const params = new URLSearchParams({ ticket: String(response.ticket) });
+    return `${scheme}//${host.host}/v1/tunnels/${encodeURIComponent(tunnelId)}/events?${params}`;
   }
 
   async connectEvents(
