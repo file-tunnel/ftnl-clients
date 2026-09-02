@@ -29,7 +29,7 @@ jobs:
         if: matrix.target == 'typescript'
         with:
           node-version: 22
-      - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1 # v1.8.0
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
         if: matrix.target == 'dart'
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         if: matrix.target == 'gleam'
