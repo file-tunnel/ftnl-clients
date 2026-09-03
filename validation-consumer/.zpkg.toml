@@ -1,0 +1,26 @@
+[package]
+org = "file-tunnel"
+name = "ftnl-validation-consumer"
+version = "0.1.0"
+description = "Client adapters for ftnl-lib-core public validation SDKs"
+license = "MIT"
+
+[dependencies]
+"file-tunnel/ftnl-lib-core" = "^0.1.0"
+"file-tunnel/ftnl-interfaces" = "^0.1.0"
+
+[targets.typescript]
+dir = "typescript"
+adapter = "node"
+
+[targets.rust]
+dir = "rust"
+adapter = "rust"
+
+[targets.golang]
+dir = "golang"
+adapter = "none"
+
+[targets.gleam]
+dir = "gleam"
+adapter = "none"
