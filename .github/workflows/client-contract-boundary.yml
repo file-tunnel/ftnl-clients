@@ -1,0 +1,128 @@
+name: client-contract-boundary
+
+on:
+  pull_request:
+    paths:
+      - "clients/**"
+      - "scripts/verify_client_contract.py"
+      - ".zpkg.toml"
+      - ".zpkg.lock"
+      - ".github/workflows/client-contract-boundary.yml"
+  push:
+    branches: [main]
+    paths:
+      - "clients/**"
+      - "scripts/verify_client_contract.py"
+      - ".zpkg.toml"
+      - ".zpkg.lock"
+      - ".github/workflows/client-contract-boundary.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-contract-boundary-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned Draft 2020-12 validators
+        run: >-
+          python -m pip install --disable-pip-version-check
+          jsonschema==4.25.1 referencing==0.36.2 rpds-py==0.27.0
+      - name: Validate schema, fingerprints, markers, and Zed provenance
+        run: python3 scripts/verify_client_contract.py
+      - name: Reject private symbols in the public surface
+        run: |
+          python3 - <<'PY'
+          import copy
+          import json
+          from pathlib import Path
+
+          surface = json.loads(Path("clients/api-surface.json").read_text(encoding="utf-8"))
+
+          def public_only(value):
+              if isinstance(value, dict):
+                  if value.get("visibility") == "private":
+                      return None
+                  return {
+                      key: filtered
+                      for key, child in value.items()
+                      if (filtered := public_only(child)) is not None
+                  }
+              if isinstance(value, list):
+                  return [
+                      filtered
+                      for child in value
+                      if (filtered := public_only(child)) is not None
+                  ]
+              return value
+
+          def named_refs(value):
+              if isinstance(value, dict):
+                  if value.get("kind") == "named" and isinstance(value.get("name"), str):
+                      yield value["name"]
+                  for child in value.values():
+                      yield from named_refs(child)
+              elif isinstance(value, list):
+                  for child in value:
+                      yield from named_refs(child)
+
+          def boundary_errors(document):
+              symbols = document.get("symbols")
+              if not isinstance(symbols, list) or not symbols:
+                  return ["contract has no symbols"]
+              private_names = {
+                  symbol["name"]
+                  for symbol in symbols
+                  if isinstance(symbol, dict)
+                  and symbol.get("visibility") == "private"
+                  and isinstance(symbol.get("name"), str)
+              }
+              errors = []
+              for symbol in symbols:
+                  if not isinstance(symbol, dict) or symbol.get("visibility") != "public":
+                      continue
+                  leaked = sorted(set(named_refs(public_only(symbol))) & private_names)
+                  if leaked:
+                      errors.append(f'{symbol.get("name", "<unnamed>")}: {", ".join(leaked)}')
+              return errors
+
+          errors = boundary_errors(surface)
+          if errors:
+              raise SystemExit("private symbols exposed: " + "; ".join(errors))
+
+          mutant = copy.deepcopy(surface)
+          mutant.setdefault("symbols", []).extend([
+              {"name": "__private_boundary_canary", "kind": "opaque", "visibility": "private"},
+              {
+                  "name": "__public_boundary_canary",
+                  "kind": "function",
+                  "visibility": "public",
+                  "returns": {"kind": "named", "name": "__private_boundary_canary"},
+              },
+          ])
+          if not boundary_errors(mutant):
+              raise SystemExit("private-boundary negative canary unexpectedly passed")
+
+          targets = sorted(
+              path.name for path in Path("clients").iterdir()
+              if path.is_dir() and not path.name.startswith(".")
+          )
+          if len(targets) < 15:
+              raise SystemExit(f"expected at least 15 client targets, found {len(targets)}")
+          missing = sorted({"dart", "rust", "typescript"} - set(targets))
+          if missing:
+              raise SystemExit(f"required core targets are missing: {missing}")
+          print(f"validated {len(surface['symbols'])} symbols across {len(targets)} targets")
+          PY

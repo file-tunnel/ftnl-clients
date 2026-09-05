@@ -43,6 +43,14 @@ exclude = [
 [targets.repository]
 dir = "."
 
+[targets.nodejs]
+dir = "clients/typescript"
+adapter = "node"
+
+[targets.python]
+dir = "clients/python"
+adapter = "none"
+
 [targets.golang]
 dir = "clients/go"
 adapter = "none"
@@ -53,6 +61,10 @@ adapter = "none"
 
 [targets.dart]
 dir = "clients/dart"
+adapter = "none"
+
+[targets.gleam]
+dir = "clients/gleam"
 adapter = "none"
 
 [targets.erlang]
@@ -97,17 +109,4 @@ adapter = "none"
 
 [targets.rust-wasm]
 dir = "clients/wasm"
-adapter = "node"
-
-
-[targets.gleam]
-dir = "clients/gleam"
-adapter = "none"
-
-[targets.python]
-dir = "clients/python"
-adapter = "none"
-
-[targets.nodejs]
-dir = "clients/typescript"
-adapter = "node"
+adapter = "rust"

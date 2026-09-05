@@ -1,9 +1,9 @@
 # ftnl-clients
 
-Official File Tunnel clients for Rust, TypeScript, Dart, and Gleam. The layout
-follows the multi-language SDK pattern used by `fiducia-clients`,
-`cliptown-clients`, and `opto-sync-clients`, with a deliberately small,
-consistent surface in every language.
+Official File Tunnel clients for Rust, TypeScript, Dart/Flutter, Gleam, Java,
+and Swift. The layout follows the multi-language SDK pattern used by
+`fiducia-clients`, `cliptown-clients`, and `opto-sync-clients`, with a
+deliberately small, consistent surface in every language.
 
 ## Packages
 
@@ -13,6 +13,8 @@ consistent surface in every language.
 | TypeScript | `clients/typescript` | `@file-tunnel/client` |
 | Dart | `clients/dart` | `ftnl_client` |
 | Gleam | `clients/gleam` | `ftnl_client` |
+| Java 17 / Android | `clients/java` | `io.filetunnel:ftnl-client` |
+| Swift 5.9 / iOS | `clients/swift` | `FtnlClient` |
 
 The root [`.zpkg.toml`](.zpkg.toml) also makes this repository a
 [`zed-pkg`](https://github.com/zed-pkg) package. Zed produces one complete
@@ -48,6 +50,8 @@ single-label service names, and the documented `.svc.cluster.local` and
 | TypeScript | 30 seconds by default; `timeoutMs` overrides it | rejected |
 | Dart | 30 seconds by default; `requestTimeout` overrides it | disabled |
 | Gleam | owned by the caller-selected transport | owned by the caller-selected transport |
+| Java | 30 seconds by default; the `Duration` initializer overrides it | disabled |
+| Swift | 30 seconds by default; `requestTimeout` overrides it | disabled by the default ephemeral session |
 
 Timeouts surface to the host instead of triggering hidden retries. The Gleam
 package intentionally returns transport-neutral requests, so the BEAM or
@@ -70,9 +74,17 @@ Clients do not hide retries because an ambiguous timeout needs host UX.
 
 ```bash
 nix develop --command agent-check
+clients/java/test.sh
+swift test --package-path clients/swift
+cd clients/dart && flutter test
 ```
 
 The root flake pins all four language toolchains and the automation linters.
+The `mobile-clients` workflow additionally builds Java on Linux, Swift on a
+macOS runner, and the Dart package inside a pinned Flutter SDK. Each mobile
+suite drives the same in-memory transfer contract: pairing, capability-header
+placement, declaration, byte upload/download, event-ticket minting,
+cancellation, and safe problem details.
 The formal-boundary workflow generates arbitrary UTF-8 pairing secrets and
 checks that Rust accepts them only from the URI fragment, never from query
 parameters.
