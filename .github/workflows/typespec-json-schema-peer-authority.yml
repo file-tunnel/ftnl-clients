@@ -79,7 +79,7 @@ jobs:
           max_probes: "64"
       # The two-declaration canary does not certify unrelated product contracts.
       - name: Verify current evidence and complete consumer declaration scope
-        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@c745036456dd80408b83217118b8563edb8f6abd
+        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@dfe28b8a91e6555919a539dc607f4e1d5d183b4d
         with:
           contract_ir: .typespec-json-schema-validator/contract-ir.json
           report: .typespec-json-schema-validator/report.json
