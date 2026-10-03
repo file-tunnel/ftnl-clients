@@ -1,0 +1,11 @@
+{
+  "apiSurfaceSha256": "fb0070abfb7ee9272be27f254342b75e4a7971c247d3e9f6743087b5905fadbc",
+  "changed": [],
+  "errors": [],
+  "minimumTargets": 15,
+  "mode": "write",
+  "prefix": "ftnl",
+  "repository": "file-tunnel/ftnl-clients",
+  "schemaVersion": 1,
+  "standardTargets": 20
+}
