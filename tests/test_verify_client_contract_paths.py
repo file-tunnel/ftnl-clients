@@ -74,6 +74,52 @@ class ImplementationEvidenceTests(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     verifier.resolve_inside(clients, "clients/../clients", "target test")
 
+    def test_symlinked_json_contract_input_is_denied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            external = root / "external.json"
+            external.write_text('{"schemaVersion":1}\n', encoding="utf-8")
+            marker = root / ".zed-client-contract.json"
+            marker.symlink_to(external)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                verifier.load_json(marker)
+            self.assertIn("refusing symlinked JSON input", stderr.getvalue())
+
+    def test_symlinked_direct_marker_is_denied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "sdk"
+            target.mkdir()
+            external = root / "external.json"
+            external.write_text("{}\n", encoding="utf-8")
+            (target / ".zed-client-contract.json").symlink_to(external)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                verifier.marker_root(target, "nodejs")
+            self.assertIn("refusing symlinked contract marker", stderr.getvalue())
+
+    def test_symlinked_nested_marker_parent_is_denied(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            target = root / "sdk"
+            target.mkdir()
+            nested = root / "other-markers"
+            nested.mkdir()
+            (target / ".zed-contracts").symlink_to(nested, target_is_directory=True)
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                verifier.marker_root(target, "nodejs")
+            self.assertIn("refusing symlinked contract marker", stderr.getvalue())
+
+    def test_regular_nested_contract_marker_is_supported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "sdk"
+            nested = target / ".zed-contracts" / "nodejs"
+            nested.mkdir(parents=True)
+            (nested / ".zed-client-contract.json").write_text("{}\n", encoding="utf-8")
+            self.assertEqual(verifier.marker_root(target, "nodejs"), nested)
+
     def test_ignored_dependency_tree_does_not_pollute_fingerprint(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
