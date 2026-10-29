@@ -6,6 +6,7 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from scripts import verify_client_contract as verifier
 
@@ -49,6 +50,29 @@ class ImplementationEvidenceTests(unittest.TestCase):
             with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
                 verifier.implementation_evidence(alias)
             self.assertIn("target directory must not be a symlink", stderr.getvalue())
+
+    def test_manifest_target_symlink_is_rejected_before_resolve(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clients = root / "clients"
+            clients.mkdir()
+            actual = clients / "sdk"
+            actual.mkdir()
+            (clients / "alias").symlink_to(actual, target_is_directory=True)
+            stderr = io.StringIO()
+            with mock.patch.object(verifier, "ROOT", root):
+                with contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit):
+                    verifier.resolve_inside(clients, "clients/alias", "target test")
+            self.assertIn("contains a symlink", stderr.getvalue())
+
+    def test_manifest_path_cannot_traverse_parent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            clients = root / "clients"
+            clients.mkdir()
+            with mock.patch.object(verifier, "ROOT", root):
+                with self.assertRaises(SystemExit):
+                    verifier.resolve_inside(clients, "clients/../clients", "target test")
 
     def test_ignored_dependency_tree_does_not_pollute_fingerprint(self):
         with tempfile.TemporaryDirectory() as tmp:
