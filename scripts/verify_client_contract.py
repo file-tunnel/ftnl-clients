@@ -93,6 +93,10 @@ IGNORED_PARTS = {
 
 
 def load_json(path: Path) -> Any:
+    # A checked-in JSON symlink could redirect validation to unrelated files
+    # outside this checkout, even when its contents happen to be valid JSON.
+    if path.is_symlink():
+        fail(f"refusing symlinked JSON input: {path}")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -136,9 +140,13 @@ def resolve_inside(base: Path, relative: str, label: str) -> Path:
 
 def marker_root(directory: Path, runtime: str) -> Path:
     direct = directory / ".zed-client-contract.json"
+    nested_parent = directory / ".zed-contracts"
+    nested = nested_parent / runtime
+    for candidate in (direct, nested_parent, nested, nested / ".zed-client-contract.json"):
+        if candidate.is_symlink():
+            fail(f"refusing symlinked contract marker or parent: {candidate}")
     if direct.is_file():
         return directory
-    nested = directory / ".zed-contracts" / runtime
     if (nested / ".zed-client-contract.json").is_file():
         return nested
     return directory
@@ -190,6 +198,8 @@ def main() -> None:
         fail(f"api-surface schema error at {location}: {first.message}")
 
     surface_digest = digest(surface)
+    if FINGERPRINT.is_symlink():
+        fail("canonical API-surface fingerprint must not be a symlink")
     if not FINGERPRINT.is_file() or FINGERPRINT.read_text(encoding="utf-8").strip() != surface_digest:
         fail("canonical API-surface fingerprint is missing or stale")
     if contract_manifest.get("apiSurfaceSha256") != surface_digest:
@@ -271,6 +281,8 @@ def main() -> None:
         if contract != expected:
             fail(f"target {target} contract marker differs from the canonical declaration")
         marker_digest = marker / ".zed-api-surface.sha256"
+        if marker_digest.is_symlink():
+            fail(f"target {target} API fingerprint must not be a symlink")
         if not marker_digest.is_file() or marker_digest.read_text(encoding="utf-8").strip() != surface_digest:
             fail(f"target {target} API fingerprint is missing or stale")
 
