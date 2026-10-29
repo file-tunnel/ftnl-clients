@@ -45,9 +45,9 @@ jobs:
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . || status=$?
           test "$status" -eq 1
       - name: Set up the tested Node runtime
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22.16.0
+          node-version: 22.18.0
       - name: Verify repository-owned consumer policy
         shell: bash
         run: |
@@ -68,7 +68,7 @@ jobs:
           assert.equal(manifest.admission.allowFallbackAuthority, false);
           NODE
       - name: Compare peer authorities and emit fresh Contract IR
-        uses: ORESoftware/typespec-json-schema-validator@dfe28b8a91e6555919a539dc607f4e1d5d183b4d
+        uses: ORESoftware/typespec-json-schema-validator@f386c78e44c93309029e186799d926c652cb0d96
         with:
           typespec: test/fixtures/schema-authority-canary/main.tsp
           schema: test/fixtures/schema-authority-canary/authored.schema.json
@@ -79,7 +79,7 @@ jobs:
           max_probes: "64"
       # The two-declaration canary does not certify unrelated product contracts.
       - name: Verify current evidence and complete consumer declaration scope
-        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@dfe28b8a91e6555919a539dc607f4e1d5d183b4d
+        uses: ORESoftware/typespec-json-schema-validator/actions/verify-contract-ir@f386c78e44c93309029e186799d926c652cb0d96
         with:
           contract_ir: .typespec-json-schema-validator/contract-ir.json
           report: .typespec-json-schema-validator/report.json
