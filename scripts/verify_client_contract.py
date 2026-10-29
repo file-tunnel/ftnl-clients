@@ -134,20 +134,26 @@ def marker_root(directory: Path, runtime: str) -> Path:
 
 
 def implementation_evidence(directory: Path) -> tuple[int, str]:
+    # Bind the digest to actual files inside the selected client target.
+    # A symlink must never redirect verification to a file outside the tree
+    # (or to mutable content elsewhere in the workspace).
+    if directory.is_symlink():
+        fail("implementation target directory must not be a symlink")
     records: list[dict[str, str]] = []
     for path in directory.rglob("*"):
-        if (
-            path.is_file()
-            and not IGNORED_PARTS.intersection(path.relative_to(directory).parts)
-            and (
-                path.suffix.lower() in SOURCE_SUFFIXES
-                or path.name in METADATA_NAMES
-                or path.suffix.lower() in METADATA_SUFFIXES
-            )
+        relative = path.relative_to(directory)
+        if IGNORED_PARTS.intersection(relative.parts):
+            continue
+        if path.is_symlink():
+            fail(f"implementation evidence must not be a symlink: {relative.as_posix()}")
+        if path.is_file() and (
+            path.suffix.lower() in SOURCE_SUFFIXES
+            or path.name in METADATA_NAMES
+            or path.suffix.lower() in METADATA_SUFFIXES
         ):
             records.append(
                 {
-                    "path": path.relative_to(directory).as_posix(),
+                    "path": relative.as_posix(),
                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 }
             )
