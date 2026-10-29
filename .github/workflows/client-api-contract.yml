@@ -9,6 +9,7 @@ on:
       - "scripts/harden_client_contract.py"
       - "scripts/verify_client_contract.py"
       - "tests/test_client_contract_boundary.py"
+      - "tests/test_verify_client_contract_paths.py"
       - ".zpkg.toml"
       - ".github/workflows/client-api-contract.yml"
   push:
@@ -20,6 +21,7 @@ on:
       - "scripts/harden_client_contract.py"
       - "scripts/verify_client_contract.py"
       - "tests/test_client_contract_boundary.py"
+      - "tests/test_verify_client_contract_paths.py"
       - ".zpkg.toml"
       - ".github/workflows/client-api-contract.yml"
 
@@ -70,6 +72,7 @@ jobs:
           print("Draft 2020-12 client API surface validated")
           PY
           python3 -m unittest -v tests.test_client_contract_boundary
+          python3 -m unittest -v tests.test_verify_client_contract_paths
           if [ -f scripts/verify_client_contract.py ]; then
             python3 scripts/verify_client_contract.py
           fi
