@@ -93,6 +93,10 @@ IGNORED_PARTS = {
 
 
 def load_json(path: Path) -> Any:
+    # A checked-in JSON symlink could redirect validation to unrelated files
+    # outside this checkout, even when its contents happen to be valid JSON.
+    if path.is_symlink():
+        fail(f"refusing symlinked JSON input: {path}")
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
@@ -117,7 +121,18 @@ def digest(value: Any) -> str:
 
 
 def resolve_inside(base: Path, relative: str, label: str) -> Path:
-    candidate = (ROOT / relative).resolve()
+    # Verify the lexical path BEFORE resolving it: a symlinked manifest
+    # directory could otherwise resolve inside the clients tree and bypass
+    # implementation_evidence()'s directory-symlink guard.
+    parts = Path(relative)
+    if parts.is_absolute() or ".." in parts.parts:
+        fail(f"{label} must use an in-tree relative path: {relative!r}")
+    cursor = ROOT
+    for component in parts.parts:
+        cursor = cursor / component
+        if cursor.is_symlink():
+            fail(f"{label} contains a symlink: {relative!r}")
+    candidate = cursor.resolve()
     if not candidate.is_relative_to(base.resolve()):
         fail(f"{label} escapes {base.relative_to(ROOT)}: {relative!r}")
     return candidate
@@ -125,29 +140,39 @@ def resolve_inside(base: Path, relative: str, label: str) -> Path:
 
 def marker_root(directory: Path, runtime: str) -> Path:
     direct = directory / ".zed-client-contract.json"
+    nested_parent = directory / ".zed-contracts"
+    nested = nested_parent / runtime
+    for candidate in (direct, nested_parent, nested, nested / ".zed-client-contract.json"):
+        if candidate.is_symlink():
+            fail(f"refusing symlinked contract marker or parent: {candidate}")
     if direct.is_file():
         return directory
-    nested = directory / ".zed-contracts" / runtime
     if (nested / ".zed-client-contract.json").is_file():
         return nested
     return directory
 
 
 def implementation_evidence(directory: Path) -> tuple[int, str]:
+    # Bind the digest to actual files inside the selected client target.
+    # A symlink must never redirect verification to a file outside the tree
+    # (or to mutable content elsewhere in the workspace).
+    if directory.is_symlink():
+        fail("implementation target directory must not be a symlink")
     records: list[dict[str, str]] = []
     for path in directory.rglob("*"):
-        if (
-            path.is_file()
-            and not IGNORED_PARTS.intersection(path.relative_to(directory).parts)
-            and (
-                path.suffix.lower() in SOURCE_SUFFIXES
-                or path.name in METADATA_NAMES
-                or path.suffix.lower() in METADATA_SUFFIXES
-            )
+        relative = path.relative_to(directory)
+        if IGNORED_PARTS.intersection(relative.parts):
+            continue
+        if path.is_symlink():
+            fail(f"implementation evidence must not be a symlink: {relative.as_posix()}")
+        if path.is_file() and (
+            path.suffix.lower() in SOURCE_SUFFIXES
+            or path.name in METADATA_NAMES
+            or path.suffix.lower() in METADATA_SUFFIXES
         ):
             records.append(
                 {
-                    "path": path.relative_to(directory).as_posix(),
+                    "path": relative.as_posix(),
                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 }
             )
@@ -173,6 +198,8 @@ def main() -> None:
         fail(f"api-surface schema error at {location}: {first.message}")
 
     surface_digest = digest(surface)
+    if FINGERPRINT.is_symlink():
+        fail("canonical API-surface fingerprint must not be a symlink")
     if not FINGERPRINT.is_file() or FINGERPRINT.read_text(encoding="utf-8").strip() != surface_digest:
         fail("canonical API-surface fingerprint is missing or stale")
     if contract_manifest.get("apiSurfaceSha256") != surface_digest:
@@ -254,6 +281,8 @@ def main() -> None:
         if contract != expected:
             fail(f"target {target} contract marker differs from the canonical declaration")
         marker_digest = marker / ".zed-api-surface.sha256"
+        if marker_digest.is_symlink():
+            fail(f"target {target} API fingerprint must not be a symlink")
         if not marker_digest.is_file() or marker_digest.read_text(encoding="utf-8").strip() != surface_digest:
             fail(f"target {target} API fingerprint is missing or stale")
 
