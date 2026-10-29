@@ -117,7 +117,18 @@ def digest(value: Any) -> str:
 
 
 def resolve_inside(base: Path, relative: str, label: str) -> Path:
-    candidate = (ROOT / relative).resolve()
+    # Verify the lexical path BEFORE resolving it: a symlinked manifest
+    # directory could otherwise resolve inside the clients tree and bypass
+    # implementation_evidence()'s directory-symlink guard.
+    parts = Path(relative)
+    if parts.is_absolute() or ".." in parts.parts:
+        fail(f"{label} must use an in-tree relative path: {relative!r}")
+    cursor = ROOT
+    for component in parts.parts:
+        cursor = cursor / component
+        if cursor.is_symlink():
+            fail(f"{label} contains a symlink: {relative!r}")
+    candidate = cursor.resolve()
     if not candidate.is_relative_to(base.resolve()):
         fail(f"{label} escapes {base.relative_to(ROOT)}: {relative!r}")
     return candidate
