@@ -218,7 +218,7 @@
       "coordinate": "file-tunnel/ftnl-clients",
       "dir": "clients/typescript",
       "implementationFileCount": 12,
-      "implementationSha256": "314aac1204e024d6ed1a5c508f78bc43fd2723aeb0e52669b443a955c46ce4f2",
+      "implementationSha256": "7fc05635be096769a01a5a0d3b682b7a9b6a53e8bc00341ab95c438737057929",
       "runtime": "nodejs",
       "schemaId": "https://zpkg.tech/schemas/client-api.schema.json",
       "schemaVersion": 1,
