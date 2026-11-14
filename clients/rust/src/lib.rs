@@ -366,6 +366,12 @@ pub fn pairing_secret_from_uri(uri: &str) -> Option<String> {
     // A one-time capability must be the only fragment parameter.
     // `find` silently accepted duplicate keys and ignored extra fields.
     let fragment = parsed.fragment()?;
+    // Reject raw extra fields, including empty trailing fields that form decoding
+    // can silently discard. Only a literal c= prefix is an authorized key;
+    // the secret value itself may still contain percent-encoded UTF-8.
+    if !fragment.starts_with("c=") || fragment.contains('&') {
+        return None;
+    }
     let mut fields = url::form_urlencoded::parse(fragment.as_bytes());
     match (fields.next(), fields.next()) {
         (Some((key, secret)), None) if key == "c" => Some(secret.into_owned()),
@@ -404,6 +410,8 @@ mod tests {
             "https://portal.test/t/id#c=one&extra=1",
             "https://portal.test/t/id#extra=1&c=one",
             "https://portal.test/t/id#c=one&",
+            "https://portal.test/t/id#%63=one",
+            "https://portal.test/t/id#c=one&&",
         ] {
             assert_eq!(pairing_secret_from_uri(uri), None);
         }
