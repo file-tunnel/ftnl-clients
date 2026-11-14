@@ -362,13 +362,15 @@ impl FileTunnelClient {
 }
 
 pub fn pairing_secret_from_uri(uri: &str) -> Option<String> {
-    Url::parse(uri)
-        .ok()?
-        .fragment()
-        .and_then(|fragment| {
-            url::form_urlencoded::parse(fragment.as_bytes()).find(|(key, _)| key == "c")
-        })
-        .map(|(_, value)| value.into_owned())
+    let parsed = Url::parse(uri).ok()?;
+    // A one-time capability must be the only fragment parameter.
+    // `find` silently accepted duplicate keys and ignored extra fields.
+    let fragment = parsed.fragment()?;
+    let mut fields = url::form_urlencoded::parse(fragment.as_bytes());
+    match (fields.next(), fields.next()) {
+        (Some((key, secret)), None) if key == "c" => Some(secret.into_owned()),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -393,6 +395,18 @@ mod tests {
             pairing_secret_from_uri("https://portal.test/t/id?c=leaky"),
             None
         );
+    }
+
+    #[test]
+    fn duplicate_and_extra_pairing_fragment_fields_are_rejected() {
+        for uri in [
+            "https://portal.test/t/id#c=one&c=two",
+            "https://portal.test/t/id#c=one&extra=1",
+            "https://portal.test/t/id#extra=1&c=one",
+            "https://portal.test/t/id#c=one&",
+        ] {
+            assert_eq!(pairing_secret_from_uri(uri), None);
+        }
     }
 
     #[test]
