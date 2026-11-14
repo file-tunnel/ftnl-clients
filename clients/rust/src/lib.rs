@@ -372,11 +372,11 @@ pub fn pairing_secret_from_uri(uri: &str) -> Option<String> {
     if !fragment.starts_with("c=") || fragment.contains('&') {
         return None;
     }
-    let mut fields = url::form_urlencoded::parse(fragment.as_bytes());
-    match (fields.next(), fields.next()) {
-        (Some((key, secret)), None) if key == "c" => Some(secret.into_owned()),
-        _ => None,
-    }
+    // Exactly one raw field is already guaranteed above, so no mutable
+    // parser or catch-all match is needed.
+    url::form_urlencoded::parse(fragment.as_bytes())
+        .next()
+        .map(|(_, secret)| secret.into_owned())
 }
 
 #[cfg(test)]
