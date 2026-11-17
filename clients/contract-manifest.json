@@ -114,7 +114,7 @@
       "coordinate": "file-tunnel/ftnl-clients",
       "dir": "clients/rust",
       "implementationFileCount": 2,
-      "implementationSha256": "585758b4105813039368942b2f6b8205324cf03ac31323669d4dfafbc4475ec3",
+      "implementationSha256": "4789a3eb0b03ac64c3a7280e38701a539637b9a8000b65b2e5ee69234ba857ee",
       "runtime": "rust",
       "schemaId": "https://zpkg.tech/schemas/client-api.schema.json",
       "schemaVersion": 1,
